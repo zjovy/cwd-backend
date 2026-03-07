@@ -22,4 +22,4 @@ const dashboardController = {
 
 };
 
-export default donationController;
+export default dashboardController;
