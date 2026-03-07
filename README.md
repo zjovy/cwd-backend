@@ -44,7 +44,9 @@ cp .env.example .env
 docker compose up -d --build
 
 # Create tables (runs automatically via init/setup.sql, or manually):
-docker compose exec -T db mysql -ucwd_dev -plocal_dev_2026 cwd_db < sql/create_tables_mysql.sql
+docker compose exec -T db mysql -ucwd_dev -plocal_dev_2026 cwd_db < sql/create_tables_mysql.sql # Linux
+docker compose exec -T db mysql -ucwd_dev -plocal_dev_2026 cwd_db -e "$(cat sql/create_tables_mysql.sql)" # Windows
+
 
 # Start development server
 npm run dev
@@ -149,6 +151,9 @@ docker compose up -d --build
 
 # Verify MySQL is running and list databases
 docker compose exec db mysql -uroot -plocal_root_2026 -e "SHOW DATABASES;"
+
+# Start MySQL console
+docker compose exec db mysql -uroot -plocal_root_2026
 
 # Connect as the dev user
 docker compose exec db mysql -ucwd_dev -plocal_dev_2026 cwd_db
