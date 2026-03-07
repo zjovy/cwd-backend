@@ -17,13 +17,17 @@ Check out DISC:
 
 ## Stack
 
-Firebase Authentication + Supabase (PostgreSQL) backend template. Can be migrated to AWS RDS (MySQL) — see [SETUP_GUIDE.md](SETUP_GUIDE.md).
+Firebase Authentication backend template with support for **MySQL (local Docker,
+default)** and **PostgreSQL (Supabase)**. Can also be migrated to AWS RDS — see
+[SETUP_GUIDE.md](SETUP_GUIDE.md).
 
 - **Runtime**: Node.js with ES Modules
 - **Framework**: Express.js
 - **Authentication**: Firebase Auth (Email/Password + Google OAuth)
-- **Database**: Supabase (PostgreSQL) — switchable to AWS RDS (MySQL)
-- **Database Client**: pg / mysql2 (connection pool, raw SQL with parameterized queries)
+- **Database**: MySQL 8.0 via Docker (default) — switchable to Supabase
+  (PostgreSQL) or AWS RDS (MySQL)
+- **Database Client**: mysql2 / pg (connection pool, raw SQL with parameterized
+  queries)
 - **Language**: JavaScript (ES Modules)
 
 ## Quick Start
@@ -34,9 +38,13 @@ npm install
 
 # Set up environment
 cp .env.example .env
-# Edit .env with your Firebase credentials and Supabase DATABASE_URL
+# Edit .env with your Firebase credentials and Docker MySQL credentials
 
-# Create tables — paste sql/create_tables.sql into the Supabase SQL Editor
+# Start MySQL in Docker
+docker compose up -d --build
+
+# Create tables (runs automatically via init/setup.sql, or manually):
+docker compose exec -T db mysql -ucwd_dev -plocal_dev_2026 cwd_db < sql/create_tables_mysql.sql
 
 # Start development server
 npm run dev
@@ -69,8 +77,8 @@ install the recommended extensions from `.vscode/extensions.json`. Click
 **Install** on the notification, or install them manually:
 
 1. [Prettier ESLint](https://marketplace.visualstudio.com/items?itemName=rvest.vs-code-prettier-eslint)
-   (`rvest.vs-code-prettier-eslint`) — formats your code using both Prettier
-   and ESLint rules on every save
+   (`rvest.vs-code-prettier-eslint`) — formats your code using both Prettier and
+   ESLint rules on every save
 2. [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
    (`dbaeumer.vscode-eslint`) — shows lint errors and warnings inline as you
    type
@@ -90,29 +98,48 @@ npm run format
 Required `.env` variables (see [.env.example](.env.example)):
 
 - `FIREBASE_SERVICE_ACCOUNT_KEY` - Firebase service account JSON
-- `DATABASE_URL` - Supabase PostgreSQL connection string
+- `DATABASE_CLIENT` - `mysql` (default for local Docker) or `postgres` (for
+  Supabase). If omitted, auto-detected from env values.
+- `DATABASE_URL` - Supabase PostgreSQL connection string (only needed when
+  `DATABASE_CLIENT=postgres`)
+- `DB_HOST` - MySQL host (default: `127.0.0.1`)
+- `DB_PORT` - MySQL port (default: `3306`)
+- `db_name` - MySQL database name (used by Docker Compose and the app)
+- `root_password` - MySQL root password (used by Docker Compose)
+- `dev_user` - MySQL application user (used by Docker Compose and the app)
+- `dev_password` - MySQL application password (used by Docker Compose and the
+  app)
 - `PORT` - Server port (default: 5050)
 - `FRONTEND_URL` - Production frontend URL for CORS
 - `FRONTEND_URL_DEV` - Development frontend URL for CORS
 - `NODE_ENV` - Environment (development/production)
-- `db_name` - Name of the database running
-- `root_password` - Password for the root
-- `dev_user` - Name of the developer
-- `dev_password` - Password for this developer
 
-`rds-config.ini` is only needed when migrating to AWS RDS. See [SETUP_GUIDE.md](SETUP_GUIDE.md).
+`rds-config.ini` is only needed when migrating to AWS RDS. See
+[SETUP_GUIDE.md](SETUP_GUIDE.md).
 
 ## Using Docker Container
+
+The Docker Compose file starts a **MySQL 8.0** container using credentials from
+your `.env` file.
 
 ```bash
 # Build + start (run after any new change to db)
 docker compose up -d --build
 
-# verify Postgres DBs (service name assumed: db)
+# Verify MySQL is running and list databases
 docker compose exec db mysql -uroot -plocal_root_2026 -e "SHOW DATABASES;"
 
-# stop containers (keep data)
-docker compose stop                                       
+# Start MySQL console
+docker compose exec db mysql -uroot -plocal_root_2026
+
+# Connect as the dev user
+docker compose exec db mysql -ucwd_dev -plocal_dev_2026 cwd_db
+
+# Stop containers (keep data)
+docker compose stop
+
+# Stop and delete all data
+docker compose down -v
 ```
 
 ## Project Structure
@@ -120,24 +147,26 @@ docker compose stop
 ```
 js-backend/
 ├── sql/
-│   ├── create_tables.sql          # Supabase / PostgreSQL schema (default)
-│   └── create_tables_mysql.sql    # AWS RDS / MySQL schema (for migration)
+│   ├── create_tables.sql          # Supabase / PostgreSQL schema
+│   └── create_tables_mysql.sql    # MySQL schema (local Docker + AWS RDS)
 ├── src/
 │   ├── config/
 │   │   ├── firebase.js            # Firebase Admin SDK
-│   │   └── database.js            # DB connection pool (Supabase default)
+│   │   └── database.js            # DB connection pool (auto-selects MySQL or Postgres)
 │   ├── controllers/
 │   │   └── authController.js      # Auth endpoint logic
 │   ├── middleware/
 │   │   └── authMiddleware.js      # Firebase token verification
 │   ├── providers/
-│   │   ├── postgresProvider.js    # Supabase / PostgreSQL queries (default)
-│   │   └── mysqlProvider.js       # AWS RDS / MySQL queries (for migration)
+│   │   ├── postgresProvider.js    # Supabase / PostgreSQL queries
+│   │   └── mysqlProvider.js       # MySQL queries (local Docker + AWS RDS)
 │   ├── repositories/
-│   │   └── userRepository.js      # Adapter — swap providers here
+│   │   └── userRepository.js      # Adapter — auto-selects provider via DATABASE_CLIENT
 │   ├── routes/
 │   │   └── authRoutes.js          # API routes
 │   └── server.js                  # Express app
+├── docker-compose.yaml            # Local MySQL 8.0 container
+├── init/                          # SQL scripts run on first Docker start
 ├── .env.example                   # Environment template
 ├── rds-config.ini.example         # AWS RDS config template (for migration)
 └── package.json
