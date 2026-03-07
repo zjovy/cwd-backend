@@ -95,8 +95,20 @@ Required `.env` variables (see [.env.example](.env.example)):
 - `FRONTEND_URL` - Production frontend URL for CORS
 - `FRONTEND_URL_DEV` - Development frontend URL for CORS
 - `NODE_ENV` - Environment (development/production)
+- `db_name` - Name of the database running
+- `root_password` - Password for the root
+- `dev_user` - Name of the developer
+- `dev_password` - Password for this developer
 
 `rds-config.ini` is only needed when migrating to AWS RDS. See [SETUP_GUIDE.md](SETUP_GUIDE.md).
+
+## Using Docker Container
+
+```bash
+docker-compose start                                         # Start the Docker container
+docker-compose exec db mysql -u root -p -e "SHOW DATABASES;" # Verify database exists
+docker-compose stop                                          # Stop the Docker container but keep information
+```
 
 ## Project Structure
 
