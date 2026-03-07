@@ -29,7 +29,7 @@ const donorRepository = {
         dn.donation_counts,
         dn.most_recent,
         d.amount,
-        d.donation_date,
+        d.donation_date
         FROM donors dn
         LEFT JOIN donations d
         ON dn.email = d.donor_email
