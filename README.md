@@ -54,6 +54,27 @@ See [SETUP_GUIDE.md](SETUP_GUIDE.md) for full setup instructions.
 - `POST /auth/logout` - Logout
 - `POST /auth/token` - Sync Firebase OAuth user to database
 
+### Dashboard
+
+- `GET /dashboard/summary` - Get donation summary (total donations, donations this week, total donors, growth rate)
+- `GET /dashboard/trend` - Get weekly donation amounts for line chart
+- `GET /dashboard/last7days` - Get donation amounts for the past 7 days (bar chart)
+- `GET /dashboard/recent-donations` - Get the most recent donations
+
+### Donations
+
+- `GET /donations` - Get donations (supports search, status filter, amount range)
+- `GET /donations/:id` - Get a single donation by ID
+
+### Donors
+
+- `GET /donors` - Get donors (supports search and filters)
+- `GET /donors/:id` - Get single donor by id
+- `PUT /donors/:id` - Update donor information
+- `POST /donors/:id/send-thank-you` - Send a thank-you email to a donor
+- `GET /donors/:id/thank-you-template` - Download the thank-you letter template
+
+
 ## Scripts
 
 ```bash
