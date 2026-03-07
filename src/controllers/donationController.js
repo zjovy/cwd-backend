@@ -34,21 +34,29 @@ const donationController = {
     }
   },
 
-//   async createDonation(req, res) {
-//     try {
-//       const { donorName, amount } = req.body;
-
-//       const donation = await donationRepository.create({
-//         donorName,
-//         amount
-//       });
-
-//       res.status(201).json(donation);
-
-//     } catch (err) {
-//       res.status(500).json({ error: err.message });
-//     }
-//   }
+  async updateDonation(req, res) {
+    const id = req.params.id
+  
+    const result = await donationRepository.updateDonation(id, req.body)
+  
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Donation not found" })
+    }
+  
+    res.json({ message: "Donation updated successfully" })
+  },
+  
+  async deleteDonation(req, res) {
+    const id = req.params.id
+  
+    const result = await donationRepository.deleteDonation(id)
+  
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Donation not found" })
+    }
+  
+    res.json({ message: "Donation deleted successfully" })
+  }
 
 };
 

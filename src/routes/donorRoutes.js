@@ -5,8 +5,9 @@ const router = express.Router();
 
 router.get('/', donorController.getDonors);
 router.get('/:id', donorController.getDonorDetail);
-router.put('/:id', donorController.updateDonorDetail)
-router.post("/:id/send-thank-you", donorController.sendThankYouEmail)
-router.get("/:id/thank-you-template", donorController.downloadThankYouTemplate)
+router.put('/:id', donorController.updateDonorDetail);
+router.delete('/:id', donorController.deleteDonor);
+router.post("/:id/send-thank-you", donorController.sendThankYouEmail);
+router.get("/:id/thank-you-template", donorController.downloadThankYouTemplate);
 
 export default router;

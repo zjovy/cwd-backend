@@ -49,6 +49,15 @@ const donorRepository = {
   async getThankYouTemplate(donorId) {
     
   },
+
+  async deleteDonor(donorId){
+    const sql = `
+      DELETE FROM donors
+      WHERE id = ?
+    `
+    const [result] = await pool.execute(sql, [donorId]);
+    return result
+  }
 };
 
 export default donorRepository;

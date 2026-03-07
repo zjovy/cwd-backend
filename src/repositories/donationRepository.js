@@ -57,14 +57,37 @@ const donationRepository = {
     return rows[0] || null
   },
 
-//   async create({ donorName, amount }) {
-//     const sql = `
-//       INSERT INTO donations (donor_name, amount)
-//       VALUES (?, ?)
-//     `;
-//     const result = await provider.execute(sql, [donorName, amount]);
-//     return { id: result.insertId, donorName, amount };
-//   }
+  async updateDonation(id, body) {
+    const { donor_name, donor_email, amount, donation_date, receipt_status } = body
+  
+    const sql = `
+      UPDATE donations
+      SET donor_name = ?, donor_email = ?, amount = ?, donation_date = ?, receipt_status = ?
+      WHERE id = ?
+    `
+  
+    const [result] = await pool.execute(sql, [
+      donor_name,
+      donor_email,
+      amount,
+      donation_date,
+      receipt_status,
+      id
+    ])
+  
+    return result
+  },
+  
+  async deleteDonation(id) {
+    const sql = `
+      DELETE FROM donations
+      WHERE id = ?
+    `
+  
+    const [result] = await pool.execute(sql, [id])
+  
+    return result
+  }
 
 };
 

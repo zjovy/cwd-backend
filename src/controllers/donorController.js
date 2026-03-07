@@ -50,6 +50,17 @@ const donorController = {
   
     res.setHeader("Content-Type", "text/plain")
     res.send(template)
+  },
+
+  async deleteDonor(req, res){
+    const donorId = req.params.id
+    const result = await donorRepository.deleteDonor(donorId)
+  
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Donor not found" })
+    }
+  
+    res.json({ message: "Donor deleted successfully" })
   }
 
 };
