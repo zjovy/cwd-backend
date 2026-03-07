@@ -1,15 +1,17 @@
-# Setup Guide: Firebase Auth + Supabase (PostgreSQL)
+# Setup Guide: Firebase Auth + MySQL (Docker) / Supabase (PostgreSQL)
 
-This backend uses **Firebase Authentication** for identity and **Supabase
-(PostgreSQL)** for data persistence. If your team later needs to migrate to AWS
-RDS (MySQL), see [Switching to AWS RDS](#switching-to-aws-rds) at the bottom of
-this guide.
+This backend uses **Firebase Authentication** for identity and **MySQL 8.0 via
+Docker** for local data persistence (default). It also supports **Supabase
+(PostgreSQL)** and can be migrated to **AWS RDS** — see
+[Switching to Supabase (PostgreSQL)](#switching-to-supabase-postgresql) and
+[Switching to AWS RDS](#switching-to-aws-rds) at the bottom of this guide.
 
 ## Architecture
 
 - **Firebase Authentication** — Email/password and Google OAuth sign-in
-- **Supabase** — Hosted PostgreSQL database (free tier available)
-- **Raw SQL** — Parameterized queries via the `pg` package (connection pool)
+- **MySQL 8.0 (Docker)** — Local development database (default)
+- **Supabase (PostgreSQL)** — Hosted PostgreSQL database (optional)
+- **Raw SQL** — Parameterized queries via mysql2 / pg (connection pool)
 
 ---
 
@@ -48,21 +50,21 @@ npm install
 
 ---
 
-### 3. Set Up Supabase
+### 3. Set Up Local MySQL (Docker)
 
-1. Go to [supabase.com](https://supabase.com) and create a free account.
-2. Click **New project** and fill in a name, database password, and region (no
-   automatic RLS).
-3. Once the project is ready, go to **Project Settings → Database**.
-4. Click on **Connect** at top w/ plug icon, under **Connection string**, select
-   the **URI** tab and copy the connection string. It looks like:
+1. Make sure **Docker** is installed and running.
+2. Start the MySQL container:
+   ```bash
+   docker compose up -d --build
    ```
-   postgresql://postgres:[YOUR-PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
+   This reads `db_name`, `root_password`, `dev_user`, and `dev_password` from
+   your `.env` and starts a MySQL 8.0 container on port 3306.
+3. Create the `users` table:
+   ```bash
+   docker compose exec db mysql -ucwd_dev -plocal_dev_2026 cwd_db < sql/create_tables_mysql.sql
    ```
-   You'll paste this into your `.env` as `DATABASE_URL`.
-5. Create the `users` table:
-   - In your Supabase project, go to the **SQL Editor** (left sidebar).
-   - Paste the contents of `sql/create_tables.sql` and click **Run**.
+   Or connect with any MySQL client and run `sql/create_tables_mysql.sql`
+   manually.
 
 ---
 
@@ -78,8 +80,19 @@ Edit `.env`:
 # Paste the entire contents of your Firebase service account JSON (on one line)
 FIREBASE_SERVICE_ACCOUNT_KEY='{"type":"service_account","project_id":"your-project",...}'
 
-# Supabase connection string (from Project Settings → Database → URI)
+# Database client: mysql (local Docker, default) or postgres (Supabase)
+DATABASE_CLIENT=mysql
+
+# Only needed if DATABASE_CLIENT=postgres
 DATABASE_URL=postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres
+
+# MySQL connection (used by Docker Compose and the app)
+DB_HOST=127.0.0.1
+DB_PORT=3306
+db_name=cwd_db
+root_password=local_root_2026
+dev_user=cwd_dev
+dev_password=local_dev_2026
 
 # Server config
 PORT=5050
@@ -103,20 +116,27 @@ Server runs on `http://localhost:5050`.
 
 ## Database Schema
 
-The default `users` table (`sql/create_tables.sql`):
+The default `users` table (`sql/create_tables_mysql.sql`):
 
 ```sql
 CREATE TABLE IF NOT EXISTS users (
-  id           SERIAL PRIMARY KEY,
-  firebase_uid VARCHAR(128) NOT NULL UNIQUE,
-  username     VARCHAR(50)  NOT NULL UNIQUE,
-  email        VARCHAR(255) NOT NULL UNIQUE,
-  firstname    VARCHAR(100) DEFAULT NULL,
-  lastname     VARCHAR(100) DEFAULT NULL,
-  created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  firebase_uid  VARCHAR(128) NOT NULL,
+  username      VARCHAR(50)  NOT NULL,
+  email         VARCHAR(255) NOT NULL,
+  firstname     VARCHAR(100) DEFAULT NULL,
+  lastname      VARCHAR(100) DEFAULT NULL,
+  created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  UNIQUE KEY idx_firebase_uid (firebase_uid),
+  UNIQUE KEY idx_username     (username),
+  UNIQUE KEY idx_email        (email)
 );
 ```
+
+A PostgreSQL version of this schema is available in `sql/create_tables.sql` for
+Supabase deployments.
 
 Edit this schema to fit your project's data model.
 
@@ -240,24 +260,26 @@ POST /auth/logout
 ```
 js-backend/
 ├── sql/
-│   ├── create_tables.sql          # Supabase / PostgreSQL schema (default)
-│   └── create_tables_mysql.sql    # AWS RDS / MySQL schema (for migration)
+│   ├── create_tables.sql          # Supabase / PostgreSQL schema
+│   └── create_tables_mysql.sql    # MySQL schema (local Docker + AWS RDS)
 ├── src/
 │   ├── config/
 │   │   ├── firebase.js            # Firebase Admin SDK initialization
-│   │   └── database.js            # DB connection pool (Supabase default)
+│   │   └── database.js            # DB connection pool (auto-selects MySQL or Postgres)
 │   ├── controllers/
 │   │   └── authController.js      # Auth endpoint logic
 │   ├── middleware/
 │   │   └── authMiddleware.js      # Firebase token verification
 │   ├── providers/
-│   │   ├── postgresProvider.js    # Supabase / PostgreSQL queries (default)
-│   │   └── mysqlProvider.js       # AWS RDS / MySQL queries (for migration)
+│   │   ├── postgresProvider.js    # Supabase / PostgreSQL queries
+│   │   └── mysqlProvider.js       # MySQL queries (local Docker + AWS RDS)
 │   ├── repositories/
-│   │   └── userRepository.js      # Adapter — swap providers here
+│   │   └── userRepository.js      # Adapter — auto-selects provider via DATABASE_CLIENT
 │   ├── routes/
 │   │   └── authRoutes.js          # Express route definitions
 │   └── server.js                  # Express app + middleware setup
+├── docker-compose.yaml            # Local MySQL 8.0 container
+├── init/                          # SQL scripts run on first Docker start
 ├── .env.example                   # Environment variable template
 ├── rds-config.ini.example         # AWS RDS config template (for migration)
 └── package.json
@@ -265,10 +287,29 @@ js-backend/
 
 ---
 
+## Switching to Supabase (PostgreSQL)
+
+If you need a hosted PostgreSQL database instead of local MySQL:
+
+1. Go to [supabase.com](https://supabase.com) and create a free account.
+2. Click **New project** and fill in a name, database password, and region.
+3. Go to **Project Settings → Database → Connect → Connection string (URI)** and
+   copy it.
+4. In your `.env`, set:
+   ```env
+   DATABASE_CLIENT=postgres
+   DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
+   ```
+5. Create the `users` table in the Supabase **SQL Editor** using
+   `sql/create_tables.sql`.
+6. Restart the server — the backend will auto-select the Postgres provider.
+
+---
+
 ## Switching to AWS RDS
 
-When your team is ready to migrate from Supabase to AWS RDS (MySQL), make the
-following changes:
+When your team is ready to migrate to AWS RDS (MySQL), make the following
+changes:
 
 ### 1. Install the RDS config file
 
@@ -298,49 +339,48 @@ mysql -h <endpoint> -u <user> -p <dbname> < sql/create_tables_mysql.sql
 
 Or paste the contents of `sql/create_tables_mysql.sql` into MySQL Workbench.
 
-### 3. Switch the database connection — `src/config/database.js`
+### 3. Switch the database connection
 
-The file has two clearly marked sections. Keep the `dotenv` lines at the top
-as-is, then comment out the Postgres block and uncomment the MySQL block:
+`src/config/database.js` already supports MySQL. You have two options:
 
-```js
-import dotenv from 'dotenv';
-// keep this
-import pg from 'pg';
+**Option A — Use env-based connection (recommended):** Set these in your `.env`
+(the backend will auto-connect via mysql2):
 
-// comment this out ↓
-
-// ...
-
-// === AWS RDS / MySQL ===
-// import fs from 'fs';      // uncomment these ↓
-// import ini from 'ini';
-// import mysql2 from 'mysql2/promise';
-// ...
-// export { pool };
+```env
+DATABASE_CLIENT=mysql
+DB_HOST=your-rds-endpoint.region.rds.amazonaws.com
+DB_PORT=3306
+db_name=your_database_name
+dev_user=your_username
+dev_password=your_password
 ```
 
-### 4. Switch the provider — `src/repositories/userRepository.js`
+**Option B — Use `rds-config.ini` file:** A commented reference block at the
+bottom of `database.js` shows how to read credentials from `rds-config.ini`
+using the `ini` package. Uncomment and replace the env-based MySQL block if your
+team prefers config-file-based setup.
 
-```js
-// Comment out:
-// import provider from '../providers/postgresProvider.js';
-// Uncomment:
-import provider from '../providers/mysqlProvider.js';
-```
-
-That's it. The repository, controllers, and routes are all provider-agnostic and
-require no other changes.
+The repository (`userRepository.js`) auto-selects the MySQL provider when
+`DATABASE_CLIENT=mysql`, so no manual provider swapping is required.
 
 ---
 
 ## Troubleshooting
 
-### Supabase connection refused
+### MySQL connection refused (local Docker)
 
-- Double-check that `DATABASE_URL` in `.env` matches the URI exactly from
-  Supabase project settings.
-- Make sure you replaced `[YOUR-PASSWORD]` with your actual database password.
+- Make sure Docker is running: `docker compose ps`
+- Verify the container is up: `docker compose up -d --build`
+- Check that `db_name`, `dev_user`, and `dev_password` in `.env` match the
+  Docker Compose environment.
+- If you changed credentials, recreate the container:
+  `docker compose down -v && docker compose up -d --build`
+
+### Supabase / PostgreSQL connection refused
+
+- Make sure `DATABASE_CLIENT=postgres` is set in `.env`.
+- Double-check that `DATABASE_URL` matches the URI exactly from Supabase.
+- Replace `[YOUR-PASSWORD]` with your actual database password.
 - If the password contains special characters, URL-encode them (e.g., `@` →
   `%40`).
 
