@@ -1,9 +1,9 @@
 import { pool } from '../config/database.js';
 
 const donorRepository = {
-  async getDonors() {
+  async getDonors(search) {
     let sql = `
-      SELECT name, email, address, total_doations, donation_count, most_recent
+      SELECT name, email, address, total_donations, donation_count, most_recent
       FROM donors
       ORDER BY most_recent DESC
     `;
