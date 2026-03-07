@@ -62,8 +62,13 @@ const donationController = {
     }
   },
 
-  async createDonation(req, res){
-    
+  async createDonation(req, res) {
+    try {
+      const result = await donationRepository.createDonation(req.body)
+      res.status(201).json({ message: 'Donation created successfully', id: result.insertId })
+    } catch (err) {
+      res.status(500).json({ error: err.message })
+    }
   }
 
 };
