@@ -89,8 +89,21 @@ const donationRepository = {
     return result
   },
 
-  async createDonation() {
+  async createDonation({ donor_name, donor_email, amount, donation_date, receipt_status }) {
+    const sql = `
+      INSERT INTO donations (donor_name, donor_email, amount, donation_date, receipt_status)
+      VALUES (?, ?, ?, ?, ?)
+    `
 
+    const [result] = await pool.execute(sql, [
+      donor_name,
+      donor_email,
+      amount,
+      donation_date,
+      receipt_status ?? 'pending'
+    ])
+
+    return result
   }
 
 };
