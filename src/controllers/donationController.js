@@ -36,26 +36,34 @@ const donationController = {
 
   async updateDonation(req, res) {
     const id = req.params.id
+    try {
+      const result = await donationRepository.updateDonation(id, req.body)
   
-    const result = await donationRepository.updateDonation(id, req.body)
-  
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Donation not found" })
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: "Donation not found" })
+      }
+      res.json({ message: "Donation updated successfully" })
+    } catch (err) {
+      res.status(500).json({ error: err.message })
     }
-  
-    res.json({ message: "Donation updated successfully" })
   },
   
   async deleteDonation(req, res) {
     const id = req.params.id
+    try {
+      const result = await donationRepository.deleteDonation(id)
   
-    const result = await donationRepository.deleteDonation(id)
-  
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Donation not found" })
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: "Donation not found" })
+      }
+      res.json({ message: "Donation deleted successfully" })
+    } catch (err) {
+      res.status(500).json({ error: err.message })
     }
-  
-    res.json({ message: "Donation deleted successfully" })
+  },
+
+  async createDonation(req, res){
+    
   }
 
 };

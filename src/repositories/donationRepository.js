@@ -87,6 +87,10 @@ const donationRepository = {
     const [result] = await pool.execute(sql, [id])
   
     return result
+  },
+
+  async createDonation() {
+
   }
 
 };

@@ -30,16 +30,25 @@ const donorController = {
   },
 
   async updateDonorDetail(req, res){
-
+    const id = req.prams.id;
+    try{
+      const result = await donorRepository.updateDonor(id, req.body);
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: "Donation not found" })
+      }
+      res.json({ message: "Donation updated successfully" })
+    } catch (err) {
+      res.status(500).json({error: err.message});
+    }
   },
 
   async sendThankYouEmail(req, res){
     const donorId = req.params.id
     try {
-        await donorRepository.sendThankYouEmail(donorId)
-        res.json({ message: "Email sent successfully" })
+      await donorRepository.sendThankYouEmail(donorId)
+      res.json({ message: "Email sent successfully" })
     } catch (err) {
-        res.status(500).json({ error: err.message });
+      res.status(500).json({ error: err.message });
     }
 
   },
@@ -54,15 +63,22 @@ const donorController = {
 
   async deleteDonor(req, res){
     const donorId = req.params.id
-    const result = await donorRepository.deleteDonor(donorId)
+    try{
+      const result = await donorRepository.deleteDonor(donorId)
   
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Donor not found" })
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: "Donor not found" })
+      }
+    
+      res.json({ message: "Donor deleted successfully" })
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
-  
-    res.json({ message: "Donor deleted successfully" })
-  }
+  },
 
+  async createDonor(req, res){
+    
+  }
 };
 
 export default donorController;

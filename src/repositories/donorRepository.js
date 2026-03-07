@@ -39,8 +39,24 @@ const donorRepository = {
     return rows[0] || null
   },
 
-  async updateById(id){
-
+  async updateDonor(id, body){
+    const { name, email, address, phone } = body
+  
+    const sql = `
+      UPDATE donations
+      SET name = ?, email = ?, address = ?, phone = ?
+      WHERE id = ?
+    `
+  
+    const [result] = await pool.execute(sql, [
+      name,
+      email,
+      address,
+      phone,
+      id
+    ])
+  
+    return result
   },
 
   async sendThankYouEmail(donorId){
@@ -57,7 +73,11 @@ const donorRepository = {
     `
     const [result] = await pool.execute(sql, [donorId]);
     return result
-  }
+  },
+
+  async createDonor(){
+
+  },
 };
 
 export default donorRepository;
