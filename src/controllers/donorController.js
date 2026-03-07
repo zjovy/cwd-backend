@@ -3,7 +3,7 @@ import donorRepository from '../repositories/donorRepository.js';
 const donorController = {
 
   async getDonors(req, res) {
-    const search = req.query.search
+    const { search } = req.query
     try {
       const donors = await donorRepository.getDonors(search);
       res.json(donors);
@@ -30,7 +30,7 @@ const donorController = {
   },
 
   async updateDonorDetail(req, res){
-    const id = req.prams.id;
+    const id = req.params.id;
     try{
       const result = await donorRepository.updateDonor(id, req.body);
       if (result.affectedRows === 0) {
@@ -77,7 +77,7 @@ const donorController = {
   },
 
   async createDonor(req, res){
-    
+
   }
 };
 
