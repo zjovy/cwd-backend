@@ -105,9 +105,14 @@ Required `.env` variables (see [.env.example](.env.example)):
 ## Using Docker Container
 
 ```bash
-docker-compose start                                         # Start the Docker container
-docker-compose exec db mysql -u root -p -e "SHOW DATABASES;" # Verify database exists
-docker-compose stop                                          # Stop the Docker container but keep information
+# Build + start (run after any new change to db)
+docker compose up -d --build
+
+# verify Postgres DBs (service name assumed: db)
+docker compose exec db mysql -uroot -plocal_root_2026 -e "SHOW DATABASES;"
+
+# stop containers (keep data)
+docker compose stop                                       
 ```
 
 ## Project Structure
