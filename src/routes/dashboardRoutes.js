@@ -7,7 +7,7 @@ router.get('/summary', dashboardController.getDashboardSummary);
 
 router.get('/trend', dashboardController.getDonationTrend);
 
-router.get('/last7days', dashboardController.getLast7DaysDonations);
+router.get('/last6months', dashboardController.getLast6MonthsDonations);
 
 router.get('/recent-donations', dashboardController.getRecentDonations)
 export default router;
