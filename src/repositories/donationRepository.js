@@ -3,8 +3,10 @@ import { pool } from '../config/database.js';
 const donationRepository = {
 
   async getDonations({ search, status, minAmount, maxAmount, page = 1, limit = 25 }) {
-    const pageSize = parseInt(limit) || 25
-    const offset = (parseInt(page) - 1) * pageSize
+    const MAX_LIMIT = 100
+    const pageSize = Math.min(Math.max(parseInt(limit) || 25, 1), MAX_LIMIT)
+    const safePage = Math.max(parseInt(page) || 1, 1)
+    const offset = (safePage - 1) * pageSize
 
     let where = 'WHERE 1=1'
     const params = []
@@ -29,19 +31,19 @@ const donationRepository = {
       params.push(maxAmount)
     }
 
-    const [countRows] = await pool.execute(
-      `SELECT COUNT(*) AS total FROM donations ${where}`,
-      params
-    )
-    const total = parseInt(countRows[0].total)
+    const [[countRows], [rows]] = await Promise.all([
+      pool.execute(
+        `SELECT COUNT(*) AS total FROM donations ${where}`,
+        params
+      ),
+      pool.execute(
+        `SELECT id, donor_name, donor_email, amount, donation_date, receipt_status
+         FROM donations ${where} ORDER BY donation_date DESC LIMIT ${pageSize} OFFSET ${offset}`,
+        params
+      ),
+    ])
 
-    const [rows] = await pool.execute(
-      `SELECT id, donor_name, donor_email, amount, donation_date, receipt_status
-       FROM donations ${where} ORDER BY donation_date DESC LIMIT ${pageSize} OFFSET ${offset}`,
-      params
-    )
-
-    return { rows, total }
+    return { rows, total: parseInt(countRows[0].total) }
   },
 
   async getById(id) {
