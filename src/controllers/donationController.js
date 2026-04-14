@@ -4,14 +4,16 @@ const donationController = {
 
   async getDonations(req, res) {
     try {
-      const { search, status, minAmount, maxAmount } = req.query
-      const donations = await donationRepository.getDonations({
+      const { search, status, minAmount, maxAmount, page, limit } = req.query
+      const { rows, total } = await donationRepository.getDonations({
         search,
         status,
         minAmount,
-        maxAmount
+        maxAmount,
+        page,
+        limit,
       })
-      res.json(donations);
+      res.json({ donations: rows, total });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

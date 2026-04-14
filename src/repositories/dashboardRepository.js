@@ -78,7 +78,7 @@ const dashboardRepository = {
 
   async getRecentDonations() {
     const [rows] = await pool.execute(`
-      SELECT id, donor_name, amount, donation_date, receipt_status
+      SELECT id, donor_name, donor_email, amount, donation_date, receipt_status
       FROM donations
       ORDER BY donation_date DESC
       LIMIT 5
