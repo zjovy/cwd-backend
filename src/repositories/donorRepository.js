@@ -1,20 +1,34 @@
 import { pool } from '../config/database.js';
 
 const donorRepository = {
-  async getDonors(search) {
-    let sql = `
-      SELECT name, email, address, total_donations, donation_count, most_recent
-      FROM donors
-      ORDER BY most_recent DESC
-    `;
+
+  async getDonors({ search, page = 1, limit = 25 }) {
+    const MAX_LIMIT = 100
+    const pageSize = Math.min(Math.max(parseInt(limit) || 25, 1), MAX_LIMIT)
+    const safePage = Math.max(parseInt(page) || 1, 1)
+    const offset = (safePage - 1) * pageSize
+
+    let where = 'WHERE 1=1'
+    const params = []
+
     if (search) {
-        sql += ` WHERE name LIKE ? OR email LIKE ?`
-        const [rows] = await pool.execute(sql, [`%${search}%`, `%${search}%`])
-        return rows
-      }
+      where += ` AND (name LIKE ? OR email LIKE ?)`
+      params.push(`%${search}%`, `%${search}%`)
+    }
     
-    const [rows] = await pool.execute(sql)
-    return rows
+    const [[countRows], [rows]] = await Promise.all([
+      pool.execute(
+        `SELECT COUNT(*) AS total FROM donors ${where}`,
+        params
+      ),
+      pool.execute(
+        `SELECT id, name, email, address, phone, total_donations, donation_count, most_recent
+         FROM donors ${where} ORDER BY most_recent DESC LIMIT ${pageSize} OFFSET ${offset}`,
+        params
+      ),
+    ])
+
+    return { rows, total: parseInt(countRows[0].total) }
   },
 
   async getById(id) {
@@ -26,7 +40,7 @@ const donorRepository = {
         dn.address,
         dn.phone,
         dn.total_donations,
-        dn.donation_counts,
+        dn.donation_count,
         dn.most_recent,
         d.amount,
         d.donation_date
@@ -40,11 +54,11 @@ const donorRepository = {
   },
 
   async updateDonor(id, body){
-    const { name, email, address, phone } = body
+    const { name, email, address, phone, total_donations, donation_count, most_recent } = body
   
     const sql = `
-      UPDATE donations
-      SET name = ?, email = ?, address = ?, phone = ?
+      UPDATE donors
+      SET name = ?, email = ?, address = ?, phone = ?, total_donations = ?, donation_count = ?, most_recent = ?
       WHERE id = ?
     `
   
@@ -53,6 +67,9 @@ const donorRepository = {
       email,
       address,
       phone,
+      total_donations, 
+      donation_count, 
+      most_recent,
       id
     ])
   
@@ -75,9 +92,24 @@ const donorRepository = {
     return result
   },
 
-  async createDonor(){
+  async createDonor({ name, email, address, phone, total_donations, donation_count, most_recent }) {
+    const sql = `
+      INSERT INTO donors (name, email, address, phone, total_donations, donation_count, most_recent)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `
 
-  },
+    const [result] = await pool.execute(sql, [
+      name,
+      email,
+      address,
+      phone,
+      total_donations, 
+      donation_count, 
+      most_recent
+    ])
+
+    return result
+  }
 };
 
 export default donorRepository;
