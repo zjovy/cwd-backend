@@ -3,10 +3,10 @@ import donorRepository from '../repositories/donorRepository.js';
 const donorController = {
 
   async getDonors(req, res) {
-    const { search } = req.query
+    const { search, page, limit } = req.query
     try {
-      const donors = await donorRepository.getDonors(search);
-      res.json(donors);
+      const {rows, total } = await donorRepository.getDonors({search, page, limit});
+      res.json({donors: rows, total});
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -34,9 +34,9 @@ const donorController = {
     try{
       const result = await donorRepository.updateDonor(id, req.body);
       if (result.affectedRows === 0) {
-        return res.status(404).json({ message: "Donation not found" })
+        return res.status(404).json({ message: "Donor not found" })
       }
-      res.json({ message: "Donation updated successfully" })
+      res.json({ message: "Donor updated successfully" })
     } catch (err) {
       res.status(500).json({error: err.message});
     }
@@ -77,7 +77,12 @@ const donorController = {
   },
 
   async createDonor(req, res){
-
+    try {
+      const result = await donorRepository.createDonor(req.body)
+      res.status(201).json({ message: 'Donor created successfully', id: result.insertId })
+    } catch (err) {
+      res.status(500).json({ error: err.message })
+    }
   }
 };
 
