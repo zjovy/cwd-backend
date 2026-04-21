@@ -162,6 +162,24 @@ const authController = {
       res.status(500).json({ error: 'Internal server error' });
     }
   },
+
+  async approveUser(req, res) {
+    try {
+      const { targetUid } = req.params;
+      const { isApproved } = req.body;
+
+      const updatedUser = await userRepository.updateUser(targetUid, { isApproved: isApproved });
+
+      if (!updatedUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      res.status(200).json({message: `User access updated successfully`, user: updatedUser});
+    } catch (error) {
+      console.error('Approve user error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
 };
 
 export default authController;
