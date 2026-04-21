@@ -1,7 +1,6 @@
 import { pool } from '../config/database.js';
 
 const dashboardRepository = {
-
   async getDashboardSummary() {
     const [allTime] = await pool.execute(`
       SELECT COALESCE(SUM(amount), 0) AS total_amount
@@ -35,9 +34,13 @@ const dashboardRepository = {
 
     const lastMonthAmount = parseFloat(lastMonth[0].last_month_amount);
     const thisMonthAmount = parseFloat(thisMonth[0].this_month_amount);
-    const growthRate = lastMonthAmount === 0
-      ? null
-      : (((thisMonthAmount - lastMonthAmount) / lastMonthAmount) * 100).toFixed(1);
+    const growthRate =
+      lastMonthAmount === 0
+        ? null
+        : (
+            ((thisMonthAmount - lastMonthAmount) / lastMonthAmount) *
+            100
+          ).toFixed(1);
 
     return {
       total_amount: parseFloat(allTime[0].total_amount),
@@ -78,14 +81,15 @@ const dashboardRepository = {
 
   async getRecentDonations() {
     const [rows] = await pool.execute(`
-      SELECT id, donor_name, donor_email, amount, donation_date, receipt_status
-      FROM donations
-      ORDER BY donation_date DESC
+      SELECT d.id, d.donor_name, d.donor_email, d.amount, d.donation_date,
+             d.receipt_status, dn.id AS donor_id
+      FROM donations d
+      LEFT JOIN donors dn ON d.donor_email = dn.email
+      ORDER BY d.donation_date DESC
       LIMIT 5
     `);
     return rows;
   },
-
 };
 
 export default dashboardRepository;
