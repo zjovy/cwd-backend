@@ -5,6 +5,7 @@ const router = express.Router();
 
 router.get('/', donationController.getDonations);
 router.get('/:id', donationController.getDonationDetail);
+router.post('/:id/send-receipt', donationController.sendReceipt);
 router.put('/:id', donationController.updateDonation);
 router.post('/', donationController.createDonation);
 router.delete("/:id", donationController.deleteDonation);

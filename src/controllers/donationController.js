@@ -64,6 +64,31 @@ const donationController = {
     }
   },
 
+  async sendReceipt(req, res) {
+    try {
+      const donation = await donationRepository.getById(req.params.id);
+      if (!donation) return res.status(404).json({ error: 'Donation not found' });
+
+      const body = req.body?.body || [
+        `Dear ${donation.donor_name},`,
+        '',
+        `The C&W Market Foundation has received your generous gift of $${parseFloat(donation.amount).toLocaleString()} to support our annual efforts. Your contribution makes a meaningful difference in the work we do for our community.`,
+        '',
+        'Thank you for your generosity and continued support.',
+        '',
+        'Sincerely,',
+        'The C&W Market Foundation',
+      ].join('\n');
+
+      // TODO: configure a real email transport (e.g. nodemailer + SMTP/SendGrid)
+      console.log(`[send-receipt] To: ${donation.donor_email}\n${body}`);
+
+      res.json({ message: `Receipt sent to ${donation.donor_email}` });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+
   async createDonation(req, res) {
     try {
       const result = await donationRepository.createDonation(req.body)

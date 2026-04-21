@@ -64,7 +64,7 @@ const donationRepository = {
         d.donor_email,
         d.amount,
         d.donation_date,
-        d.payment_method,
+        d.receipt_status,
         dn.phone,
         dn.address
         FROM donations d
