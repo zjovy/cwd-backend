@@ -80,49 +80,59 @@ async function ensureDonorForNewDonation({ donor_name, donor_email }) {
 }
 
 const donationRepository = {
+  async getDonations({
+    search,
+    status,
+    minAmount,
+    maxAmount,
+    page = 1,
+    limit = 25,
+  }) {
+    const MAX_LIMIT = 100;
+    const pageSize = Math.min(Math.max(parseInt(limit) || 25, 1), MAX_LIMIT);
+    const safePage = Math.max(parseInt(page) || 1, 1);
+    const offset = (safePage - 1) * pageSize;
 
-  async getDonations({ search, status, minAmount, maxAmount, page = 1, limit = 25 }) {
-    const MAX_LIMIT = 100
-    const pageSize = Math.min(Math.max(parseInt(limit) || 25, 1), MAX_LIMIT)
-    const safePage = Math.max(parseInt(page) || 1, 1)
-    const offset = (safePage - 1) * pageSize
-
-    let where = 'WHERE 1=1'
-    const params = []
+    let where = 'WHERE 1=1';
+    const params = [];
 
     if (search) {
-      where += ` AND (donor_name LIKE ? OR donor_email LIKE ?)`
-      params.push(`%${search}%`, `%${search}%`)
+      where += ` AND (d.donor_name LIKE ? OR d.donor_email LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`);
     }
 
     if (status) {
-      where += ` AND receipt_status = ?`
-      params.push(status)
+      where += ` AND d.receipt_status = ?`;
+      params.push(status);
     }
 
     if (minAmount) {
-      where += ` AND amount >= ?`
-      params.push(minAmount)
+      where += ` AND d.amount >= ?`;
+      params.push(minAmount);
     }
 
     if (maxAmount) {
-      where += ` AND amount <= ?`
-      params.push(maxAmount)
+      where += ` AND d.amount <= ?`;
+      params.push(maxAmount);
     }
 
     const [[countRows], [rows]] = await Promise.all([
       pool.execute(
-        `SELECT COUNT(*) AS total FROM donations ${where}`,
+        `SELECT COUNT(*) AS total FROM donations d ${where}`,
         params
       ),
       pool.execute(
-        `SELECT id, donor_name, donor_email, amount, donation_date, receipt_status
-         FROM donations ${where} ORDER BY donation_date DESC LIMIT ${pageSize} OFFSET ${offset}`,
+        `SELECT d.id, d.donor_name, d.donor_email, d.amount, d.donation_date,
+                d.receipt_status, dn.id AS donor_id
+         FROM donations d
+         LEFT JOIN donors dn ON d.donor_email = dn.email
+         ${where}
+         ORDER BY d.donation_date DESC LIMIT ${pageSize} OFFSET ${offset}`,
         params
       ),
-    ])
+    ]);
 
-    return { rows, total: parseInt(countRows[0].total) }
+    return { rows, total: parseInt(countRows[0].total) };
   },
 
   async getById(id) {
@@ -140,9 +150,9 @@ const donationRepository = {
         LEFT JOIN donors dn
         ON d.donor_email = dn.email
         WHERE d.id = ?
-    `
-    const [rows] = await pool.execute(sql, [id])
-    return rows[0] || null
+    `;
+    const [rows] = await pool.execute(sql, [id]);
+    return rows[0] || null;
   },
 
   async updateDonation(id, body) {
@@ -184,7 +194,7 @@ const donationRepository = {
 
     return result;
   },
-  
+
   async deleteDonation(id) {
     const [rows] = await pool.execute(
       `SELECT donor_email FROM donations WHERE id = ?`,
@@ -206,11 +216,17 @@ const donationRepository = {
     return result;
   },
 
-  async createDonation({ donor_name, donor_email, amount, donation_date, receipt_status }) {
+  async createDonation({
+    donor_name,
+    donor_email,
+    amount,
+    donation_date,
+    receipt_status,
+  }) {
     const sql = `
       INSERT INTO donations (donor_name, donor_email, amount, donation_date, receipt_status)
       VALUES (?, ?, ?, ?, ?)
-    `
+    `;
 
     const donorEmailNormalized =
       donor_email != null && donor_email !== ''
@@ -231,8 +247,7 @@ const donationRepository = {
     });
 
     return result;
-  },
-
+  }
 };
 
 export default donationRepository;
