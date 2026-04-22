@@ -165,7 +165,7 @@ const authController = {
 
   async approveUser(req, res) {
     try {
-      const { targetUid } = req.params;
+      const { uid: targetUid } = req.params;
       const { isApproved } = req.body;
 
       const updatedUser = await userRepository.updateUser(targetUid, { isApproved: isApproved });

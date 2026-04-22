@@ -9,22 +9,7 @@ const userRepository = {
   findByUid: (uid) => provider.findByUid(uid),
   getAll: () => provider.getAll(),
   upsertUser: (userData) => provider.upsertUser(userData),
+  updateUser: (uid, updateData) => provider.updateUser(uid, updateData),
 };
-
-async function checkAllowlist(email) {
-  try {
-    const query = 'SELECT * FROM allowed_users WHERE email = ? AND status IN ("pending", "invited")';
-    const result = await db.query(query, [email]);
-    return result.length > 0 ? result[0] : null;
-  } catch (error) {
-    console.error('Allowlist check error:', error);
-    throw error;
-  }
-}
-
-async function markUserAsActive(email) {
-  const query = 'UPDATE allowed_users SET status = "active" WHERE email = ?';
-  return database.query(query, [email]);
-}
 
 export default userRepository;

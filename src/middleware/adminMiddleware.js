@@ -12,7 +12,7 @@ const adminMiddleware = async (req, res, next) => {
     const decodedToken = await admin.auth().verifyIdToken(token);
     const user = await userRepository.findByUid(decodedToken.uid);
 
-    if (!user || !user.isAdmin !== true) {
+    if (!user || !user.isAdmin) {
         return res.status(403).json({ error: 'Admin access required' });
     }
 
