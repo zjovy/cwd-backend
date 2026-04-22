@@ -9,6 +9,7 @@ const userRepository = {
   findByUid: (uid) => provider.findByUid(uid),
   getAll: () => provider.getAll(),
   upsertUser: (userData) => provider.upsertUser(userData),
+  updateUser: (uid, updateData) => provider.updateUser(uid, updateData),
 };
 
 export default userRepository;
