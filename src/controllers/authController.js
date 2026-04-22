@@ -73,27 +73,7 @@ const authController = {
   },
 
   async getMe(req, res) {
-    try {
-      const token =
-        req.cookies.session || req.headers.authorization?.split(' ')[1];
-
-      if (!token) {
-        return res.status(401).json({ error: 'Not authenticated' });
-      }
-
-      const decodedToken = await admin.auth().verifyIdToken(token);
-
-      const user = await userRepository.findByUid(decodedToken.uid);
-
-      return res.json(user || {
-        firebaseUid: decodedToken.uid,
-        email: decodedToken.email,
-        username: decodedToken.email?.split('@')[0] || 'user',
-      });
-    } catch (error) {
-      console.error('ME endpoint error:', error);
-      res.status(401).json({ error: 'Authentication failed' });
-    }
+    res.json(req.user);
   },
 
   async logout(_req, res) {
@@ -165,18 +145,52 @@ const authController = {
 
   async approveUser(req, res) {
     try {
-      const { uid: targetUid } = req.params;
+      const { uid } = req.params;
       const { isApproved } = req.body;
 
-      const updatedUser = await userRepository.updateUser(targetUid, { isApproved: isApproved });
+      if (typeof isApproved !== 'boolean') {
+        return res.status(400).json({ error: 'isApproved must be a boolean' });
+      }
+
+      if (!isApproved && uid === req.user.firebaseUid) {
+        return res.status(400).json({ error: 'Cannot revoke your own access' });
+      }
+
+      const updatedUser = await userRepository.updateUser(uid, { isApproved });
 
       if (!updatedUser) {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      res.status(200).json({message: `User access updated successfully`, user: updatedUser});
+      res.status(200).json({ message: 'User access updated successfully', user: updatedUser });
     } catch (error) {
       console.error('Approve user error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+
+  async setAdmin(req, res) {
+    try {
+      const { uid } = req.params;
+      const { isAdmin } = req.body;
+
+      if (typeof isAdmin !== 'boolean') {
+        return res.status(400).json({ error: 'isAdmin must be a boolean' });
+      }
+
+      if (!isAdmin && uid === req.user.firebaseUid) {
+        return res.status(400).json({ error: 'Cannot remove your own admin access' });
+      }
+
+      const updatedUser = await userRepository.updateUser(uid, { isAdmin });
+
+      if (!updatedUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      res.status(200).json({ message: 'User admin status updated successfully', user: updatedUser });
+    } catch (error) {
+      console.error('Set admin error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   },
