@@ -8,9 +8,13 @@ export default {
   },
 
   async findOrCreate({ uid, email, firstname, lastname }) {
-    const existing = await this.findByUid(uid);
-    if (existing) return existing;
-    return this.createUser({ uid, email, firstname, lastname });
+    await pgPool.query(
+      `INSERT INTO users (firebase_uid, email, firstname, lastname)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (firebase_uid) DO NOTHING`,
+      [uid, email, firstname, lastname],
+    );
+    return this.findByUid(uid);
   },
 
   async findByUid(uid) {
@@ -25,25 +29,13 @@ export default {
     return rows;
   },
 
-  async updateUser(uid, updateData) {
-    const fields = [];
-    const values = [];
-    let i = 1;
+  async setApproved(uid, isApproved) {
+    await pgPool.query(`UPDATE users SET is_approved = $1 WHERE firebase_uid = $2`, [isApproved, uid]);
+    return this.findByUid(uid);
+  },
 
-    if (updateData.isApproved !== undefined) {
-      fields.push(`is_approved = $${i++}`);
-      values.push(updateData.isApproved);
-    }
-    if (updateData.isAdmin !== undefined) {
-      fields.push(`is_admin = $${i++}`);
-      values.push(updateData.isAdmin);
-    }
-
-    if (fields.length === 0) return this.findByUid(uid);
-
-    values.push(uid);
-    const sql = `UPDATE users SET ${fields.join(', ')} WHERE firebase_uid = $${i}`;
-    await pgPool.query(sql, values);
+  async setAdmin(uid, isAdmin) {
+    await pgPool.query(`UPDATE users SET is_admin = $1 WHERE firebase_uid = $2`, [isAdmin, uid]);
     return this.findByUid(uid);
   },
 };

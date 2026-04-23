@@ -4,13 +4,15 @@ export default {
   async createUser({ uid, email, firstname, lastname }) {
     const sql = `INSERT INTO users (firebase_uid, email, firstname, lastname) VALUES (?, ?, ?, ?)`;
     const [result] = await pool.execute(sql, [uid, email, firstname, lastname]);
-    return { id: result.insertId, uid, email, isApproved: false };
+    return { id: result.insertId, uid, email, isApproved: false, isAdmin: false };
   },
 
   async findOrCreate({ uid, email, firstname, lastname }) {
-    const existing = await this.findByUid(uid);
-    if (existing) return existing;
-    return this.createUser({ uid, email, firstname, lastname });
+    await pool.execute(
+      `INSERT IGNORE INTO users (firebase_uid, email, firstname, lastname) VALUES (?, ?, ?, ?)`,
+      [uid, email, firstname, lastname],
+    );
+    return this.findByUid(uid);
   },
 
   async findByUid(uid) {
@@ -25,24 +27,13 @@ export default {
     return rows;
   },
 
-  async updateUser(uid, updateData) {
-    const fields = [];
-    const values = [];
+  async setApproved(uid, isApproved) {
+    await pool.execute(`UPDATE users SET is_approved = ? WHERE firebase_uid = ?`, [isApproved, uid]);
+    return this.findByUid(uid);
+  },
 
-    if (updateData.isApproved !== undefined) {
-      fields.push('is_approved = ?');
-      values.push(updateData.isApproved);
-    }
-    if (updateData.isAdmin !== undefined) {
-      fields.push('is_admin = ?');
-      values.push(updateData.isAdmin);
-    }
-
-    if (fields.length === 0) return this.findByUid(uid);
-
-    values.push(uid);
-    const sql = `UPDATE users SET ${fields.join(', ')} WHERE firebase_uid = ?`;
-    await pool.execute(sql, values);
+  async setAdmin(uid, isAdmin) {
+    await pool.execute(`UPDATE users SET is_admin = ? WHERE firebase_uid = ?`, [isAdmin, uid]);
     return this.findByUid(uid);
   },
 };

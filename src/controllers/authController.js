@@ -31,7 +31,7 @@ const authController = {
         return res.status(400).json({ error: 'Email already in use' });
       }
       if (error.code === '23505' || error.code === 'ER_DUP_ENTRY') {
-        return res.status(400).json({ error: 'Username already exists' });
+        return res.status(400).json({ error: 'Email already in use' });
       }
       res.status(500).json({ error: 'Internal server error' });
     }
@@ -127,9 +127,7 @@ const authController = {
     } catch (error) {
       console.error('Token handling error:', error);
       if (error.code === '23505' || error.code === 'ER_DUP_ENTRY') {
-        return res
-          .status(400)
-          .json({ error: 'Username already exists, please choose another' });
+        return res.status(400).json({ error: 'Email already in use' });
       }
       res.status(500).json({ error: 'Internal server error' });
     }
@@ -148,7 +146,7 @@ const authController = {
         return res.status(400).json({ error: 'Cannot revoke your own access' });
       }
 
-      const updatedUser = await userRepository.updateUser(uid, { isApproved });
+      const updatedUser = await userRepository.setApproved(uid, isApproved);
 
       if (!updatedUser) {
         return res.status(404).json({ error: 'User not found' });
@@ -174,7 +172,7 @@ const authController = {
         return res.status(400).json({ error: 'Cannot remove your own admin access' });
       }
 
-      const updatedUser = await userRepository.updateUser(uid, { isAdmin });
+      const updatedUser = await userRepository.setAdmin(uid, isAdmin);
 
       if (!updatedUser) {
         return res.status(404).json({ error: 'User not found' });
