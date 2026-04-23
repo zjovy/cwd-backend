@@ -4,7 +4,6 @@
 CREATE TABLE IF NOT EXISTS users (
   id            INT AUTO_INCREMENT PRIMARY KEY,
   firebase_uid  VARCHAR(128) NOT NULL,
-  username      VARCHAR(50)  NOT NULL,
   email         VARCHAR(255) NOT NULL,
   firstname     VARCHAR(100) DEFAULT NULL,
   lastname      VARCHAR(100) DEFAULT NULL,
@@ -14,7 +13,6 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   UNIQUE KEY idx_firebase_uid (firebase_uid),
-  UNIQUE KEY idx_username     (username),
   UNIQUE KEY idx_email        (email)
 );
 
@@ -37,4 +35,11 @@ CREATE TABLE IF NOT EXISTS donors (
   donation_count  INT DEFAULT 0,
   most_recent     date
 );
-    
+
+CREATE TABLE IF NOT EXISTS allowed_users (
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  email      VARCHAR(255) NOT NULL UNIQUE,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  invited_at DATETIME,
+  status     ENUM('pending', 'invited', 'active') DEFAULT 'pending'
+);
