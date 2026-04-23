@@ -4,26 +4,21 @@ import userRepository from '../repositories/userRepository.js';
 const authController = {
   async signup(req, res) {
     try {
-      const { email, password, username, firstname, lastname } = req.body;
+      const { email, password, firstname, lastname } = req.body;
 
-      if (!email || !password || !username) {
+      if (!email || !password) {
         return res.status(400).json({
-          error: 'Email, password, and username are required',
+          error: 'Email and password are required',
         });
       }
 
-      const userRecord = await admin.auth().createUser({
-        email,
-        password,
-        displayName: username,
-      });
+      const userRecord = await admin.auth().createUser({ email, password });
 
       const user = await userRepository.createUser({
         uid: userRecord.uid,
-        username,
         email,
         firstname,
-        lastname
+        lastname,
       })
 
       res.status(201).json({
@@ -113,11 +108,8 @@ const authController = {
 
       const decodedToken = await admin.auth().verifyIdToken(idToken);
 
-      const user = await userRepository.upsertUser({
+      const user = await userRepository.findOrCreate({
         uid: decodedToken.uid,
-        username: decodedToken.name?.replace(/\s+/g, '_').toLowerCase() ||
-          decodedToken.email?.split('@')[0] ||
-          `user_${decodedToken.uid.substring(0, 8)}`,
         email: decodedToken.email,
         firstname: decodedToken.name?.split(' ')[0] || null,
         lastname: decodedToken.name?.split(' ').slice(1).join(' ') || null,

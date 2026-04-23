@@ -1,33 +1,26 @@
 import { pool } from '../config/database.js';
 
 export default {
-  async createUser({ uid, username, email, firstname, lastname }) {
-    const sql = `INSERT INTO users (firebase_uid, username, email, firstname, lastname) VALUES (?, ?, ?, ?, ?)`;
-    const [result] = await pool.execute(sql, [uid, username, email, firstname, lastname]);
-    return { id: result.insertId, uid, username, email, isApproved: false };
+  async createUser({ uid, email, firstname, lastname }) {
+    const sql = `INSERT INTO users (firebase_uid, email, firstname, lastname) VALUES (?, ?, ?, ?)`;
+    const [result] = await pool.execute(sql, [uid, email, firstname, lastname]);
+    return { id: result.insertId, uid, email, isApproved: false };
   },
 
-  async upsertUser({ uid, username, email, firstname, lastname }) {
-    const sql = `
-      INSERT INTO users (firebase_uid, username, email, firstname, lastname)
-      VALUES (?, ?, ?, ?, ?)
-      ON DUPLICATE KEY UPDATE
-        email = VALUES(email),
-        firstname = VALUES(firstname),
-        lastname = VALUES(lastname);
-    `;
-    await pool.execute(sql, [uid, username, email, firstname, lastname]);
-    return this.findByUid(uid);
+  async findOrCreate({ uid, email, firstname, lastname }) {
+    const existing = await this.findByUid(uid);
+    if (existing) return existing;
+    return this.createUser({ uid, email, firstname, lastname });
   },
 
   async findByUid(uid) {
-    const sql = `SELECT id, firebase_uid AS firebaseUid, username, email, firstname, lastname, is_approved AS isApproved, is_admin AS isAdmin FROM users WHERE firebase_uid = ?`;
+    const sql = `SELECT id, firebase_uid AS firebaseUid, email, firstname, lastname, is_approved AS isApproved, is_admin AS isAdmin FROM users WHERE firebase_uid = ?`;
     const [rows] = await pool.execute(sql, [uid]);
     return rows[0] || null;
   },
 
   async getAll() {
-    const sql = `SELECT firebase_uid AS firebaseUid, username, email, firstname, lastname, is_approved AS isApproved, is_admin AS isAdmin FROM users ORDER BY username ASC`;
+    const sql = `SELECT firebase_uid AS firebaseUid, email, firstname, lastname, is_approved AS isApproved, is_admin AS isAdmin FROM users ORDER BY email ASC`;
     const [rows] = await pool.execute(sql);
     return rows;
   },

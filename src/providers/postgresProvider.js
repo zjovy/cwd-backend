@@ -1,33 +1,26 @@
 import { pgPool } from '../config/database.js';
 
 export default {
-  async createUser({ uid, username, email, firstname, lastname }) {
-    const sql = `INSERT INTO users (firebase_uid, username, email, firstname, lastname) VALUES ($1, $2, $3, $4, $5) RETURNING id`;
-    const { rows } = await pgPool.query(sql, [uid, username, email, firstname, lastname]);
-    return { id: rows[0].id, uid, username, email, isApproved: false, isAdmin: false };
+  async createUser({ uid, email, firstname, lastname }) {
+    const sql = `INSERT INTO users (firebase_uid, email, firstname, lastname) VALUES ($1, $2, $3, $4) RETURNING id`;
+    const { rows } = await pgPool.query(sql, [uid, email, firstname, lastname]);
+    return { id: rows[0].id, uid, email, isApproved: false, isAdmin: false };
   },
 
-  async upsertUser({ uid, username, email, firstname, lastname }) {
-    const sql = `
-      INSERT INTO users (firebase_uid, username, email, firstname, lastname)
-      VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT (firebase_uid) DO UPDATE SET
-        email = EXCLUDED.email,
-        firstname = EXCLUDED.firstname,
-        lastname = EXCLUDED.lastname;
-    `;
-    await pgPool.query(sql, [uid, username, email, firstname, lastname]);
-    return this.findByUid(uid);
+  async findOrCreate({ uid, email, firstname, lastname }) {
+    const existing = await this.findByUid(uid);
+    if (existing) return existing;
+    return this.createUser({ uid, email, firstname, lastname });
   },
 
   async findByUid(uid) {
-    const sql = `SELECT id, firebase_uid AS "firebaseUid", username, email, firstname, lastname, is_approved AS "isApproved", is_admin AS "isAdmin" FROM users WHERE firebase_uid = $1`;
+    const sql = `SELECT id, firebase_uid AS "firebaseUid", email, firstname, lastname, is_approved AS "isApproved", is_admin AS "isAdmin" FROM users WHERE firebase_uid = $1`;
     const { rows } = await pgPool.query(sql, [uid]);
     return rows[0] || null;
   },
 
   async getAll() {
-    const sql = `SELECT firebase_uid AS "firebaseUid", username, email, firstname, lastname, is_approved AS "isApproved", is_admin AS "isAdmin" FROM users ORDER BY username ASC`;
+    const sql = `SELECT firebase_uid AS "firebaseUid", email, firstname, lastname, is_approved AS "isApproved", is_admin AS "isAdmin" FROM users ORDER BY email ASC`;
     const { rows } = await pgPool.query(sql);
     return rows;
   },

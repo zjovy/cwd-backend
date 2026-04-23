@@ -8,7 +8,7 @@ const userRepository = {
   createUser: (userData) => provider.createUser(userData),
   findByUid: (uid) => provider.findByUid(uid),
   getAll: () => provider.getAll(),
-  upsertUser: (userData) => provider.upsertUser(userData),
+  findOrCreate: (userData) => provider.findOrCreate(userData),
   updateUser: (uid, updateData) => provider.updateUser(uid, updateData),
 };
 
