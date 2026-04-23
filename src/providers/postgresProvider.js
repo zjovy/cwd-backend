@@ -30,12 +30,18 @@ export default {
   },
 
   async setApproved(uid, isApproved) {
-    await pgPool.query(`UPDATE users SET is_approved = $1 WHERE firebase_uid = $2`, [isApproved, uid]);
+    const sql = isApproved
+      ? `UPDATE users SET is_approved = TRUE WHERE firebase_uid = $1`
+      : `UPDATE users SET is_approved = FALSE, is_admin = FALSE WHERE firebase_uid = $1`;
+    await pgPool.query(sql, [uid]);
     return this.findByUid(uid);
   },
 
   async setAdmin(uid, isAdmin) {
-    await pgPool.query(`UPDATE users SET is_admin = $1 WHERE firebase_uid = $2`, [isAdmin, uid]);
+    const sql = isAdmin
+      ? `UPDATE users SET is_admin = TRUE, is_approved = TRUE WHERE firebase_uid = $1`
+      : `UPDATE users SET is_admin = FALSE WHERE firebase_uid = $1`;
+    await pgPool.query(sql, [uid]);
     return this.findByUid(uid);
   },
 };

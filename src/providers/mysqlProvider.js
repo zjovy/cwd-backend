@@ -28,12 +28,18 @@ export default {
   },
 
   async setApproved(uid, isApproved) {
-    await pool.execute(`UPDATE users SET is_approved = ? WHERE firebase_uid = ?`, [isApproved, uid]);
+    const sql = isApproved
+      ? `UPDATE users SET is_approved = TRUE WHERE firebase_uid = ?`
+      : `UPDATE users SET is_approved = FALSE, is_admin = FALSE WHERE firebase_uid = ?`;
+    await pool.execute(sql, [uid]);
     return this.findByUid(uid);
   },
 
   async setAdmin(uid, isAdmin) {
-    await pool.execute(`UPDATE users SET is_admin = ? WHERE firebase_uid = ?`, [isAdmin, uid]);
+    const sql = isAdmin
+      ? `UPDATE users SET is_admin = TRUE, is_approved = TRUE WHERE firebase_uid = ?`
+      : `UPDATE users SET is_admin = FALSE WHERE firebase_uid = ?`;
+    await pool.execute(sql, [uid]);
     return this.findByUid(uid);
   },
 };

@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   UNIQUE KEY idx_firebase_uid (firebase_uid),
-  UNIQUE KEY idx_email        (email)
+  UNIQUE KEY idx_email        (email),
+  CONSTRAINT admin_requires_approval CHECK (is_admin = FALSE OR is_approved = TRUE)
 );
 
 CREATE TABLE IF NOT EXISTS donations (

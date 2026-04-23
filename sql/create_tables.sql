@@ -10,7 +10,9 @@ CREATE TABLE IF NOT EXISTS users (
   is_approved  BOOLEAN      NOT NULL DEFAULT FALSE,
   is_admin     BOOLEAN      NOT NULL DEFAULT FALSE,
   created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-  updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+  updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT admin_requires_approval CHECK (is_admin = FALSE OR is_approved = TRUE)
 );
 
 CREATE OR REPLACE FUNCTION set_updated_at()
