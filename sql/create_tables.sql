@@ -13,13 +13,17 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS allowed_users (
-  id         SERIAL PRIMARY KEY,
-  email      VARCHAR(255) NOT NULL UNIQUE,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  invited_at TIMESTAMPTZ,
-  status     VARCHAR(10)  NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'invited', 'active'))
-);
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER users_updated_at
+BEFORE UPDATE ON users
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 CREATE TABLE IF NOT EXISTS donations (
   id              SERIAL PRIMARY KEY,

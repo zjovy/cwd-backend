@@ -35,11 +35,3 @@ CREATE TABLE IF NOT EXISTS donors (
   donation_count  INT DEFAULT 0,
   most_recent     DATE
 );
-
-CREATE TABLE IF NOT EXISTS allowed_users (
-  id         INT AUTO_INCREMENT PRIMARY KEY,
-  email      VARCHAR(255) NOT NULL UNIQUE,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  invited_at DATETIME,
-  status     ENUM('pending', 'invited', 'active') DEFAULT 'pending'
-);

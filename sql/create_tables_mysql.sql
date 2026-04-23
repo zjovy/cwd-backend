@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS donations (
   donor_name      VARCHAR(255),
   donor_email     VARCHAR(255),
   amount          DECIMAL(10,2),
-  donation_date   date,
+  donation_date   DATE,
   receipt_status  VARCHAR(50)
 );
 
@@ -33,13 +33,5 @@ CREATE TABLE IF NOT EXISTS donors (
   phone           VARCHAR(20),
   total_donations DECIMAL(10,2) DEFAULT 0,
   donation_count  INT DEFAULT 0,
-  most_recent     date
-);
-
-CREATE TABLE IF NOT EXISTS allowed_users (
-  id         INT AUTO_INCREMENT PRIMARY KEY,
-  email      VARCHAR(255) NOT NULL UNIQUE,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  invited_at DATETIME,
-  status     ENUM('pending', 'invited', 'active') DEFAULT 'pending'
+  most_recent     DATE
 );
