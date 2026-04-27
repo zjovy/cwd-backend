@@ -9,8 +9,7 @@ const userRepository = {
   findByUid: (uid) => provider.findByUid(uid),
   getAll: () => provider.getAll(),
   findOrCreate: (userData) => provider.findOrCreate(userData),
-  setApproved: (uid, isApproved) => provider.setApproved(uid, isApproved),
-  setAdmin: (uid, isAdmin) => provider.setAdmin(uid, isAdmin),
+  setRole: (uid, role) => provider.setRole(uid, role),
 };
 
 export default userRepository;

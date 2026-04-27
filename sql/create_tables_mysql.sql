@@ -7,14 +7,13 @@ CREATE TABLE IF NOT EXISTS users (
   email         VARCHAR(255) NOT NULL,
   firstname     VARCHAR(100) DEFAULT NULL,
   lastname      VARCHAR(100) DEFAULT NULL,
-  is_approved   BOOLEAN      NOT NULL DEFAULT FALSE,
-  is_admin      BOOLEAN      NOT NULL DEFAULT FALSE,
+  role          VARCHAR(20)  NOT NULL DEFAULT 'pending',
   created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   UNIQUE KEY idx_firebase_uid (firebase_uid),
   UNIQUE KEY idx_email        (email),
-  CONSTRAINT admin_requires_approval CHECK (is_admin = FALSE OR is_approved = TRUE)
+  CONSTRAINT valid_role CHECK (role IN ('pending', 'member', 'admin'))
 );
 
 CREATE TABLE IF NOT EXISTS donations (

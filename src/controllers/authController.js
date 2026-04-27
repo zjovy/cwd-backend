@@ -133,54 +133,28 @@ const authController = {
     }
   },
 
-  async approveUser(req, res) {
+  async setRole(req, res) {
     try {
       const { uid } = req.params;
-      const { isApproved } = req.body;
+      const { role } = req.body;
 
-      if (typeof isApproved !== 'boolean') {
-        return res.status(400).json({ error: 'isApproved must be a boolean' });
+      if (!['pending', 'member', 'admin'].includes(role)) {
+        return res.status(400).json({ error: 'role must be pending, member, or admin' });
       }
 
-      if (!isApproved && uid === req.user.firebaseUid) {
+      if (role === 'pending' && uid === req.user.firebaseUid) {
         return res.status(400).json({ error: 'Cannot revoke your own access' });
       }
 
-      const updatedUser = await userRepository.setApproved(uid, isApproved);
+      const updatedUser = await userRepository.setRole(uid, role);
 
       if (!updatedUser) {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      res.status(200).json({ message: 'User access updated successfully', user: updatedUser });
+      res.status(200).json({ message: 'User role updated', user: updatedUser });
     } catch (error) {
-      console.error('Approve user error:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  },
-
-  async setAdmin(req, res) {
-    try {
-      const { uid } = req.params;
-      const { isAdmin } = req.body;
-
-      if (typeof isAdmin !== 'boolean') {
-        return res.status(400).json({ error: 'isAdmin must be a boolean' });
-      }
-
-      if (!isAdmin && uid === req.user.firebaseUid) {
-        return res.status(400).json({ error: 'Cannot remove your own admin access' });
-      }
-
-      const updatedUser = await userRepository.setAdmin(uid, isAdmin);
-
-      if (!updatedUser) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-
-      res.status(200).json({ message: 'User admin status updated successfully', user: updatedUser });
-    } catch (error) {
-      console.error('Set admin error:', error);
+      console.error('Set role error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   },
