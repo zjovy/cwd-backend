@@ -78,7 +78,7 @@ export default {
     const params = [];
 
     if (search) {
-      where += ` AND (d.donor_name LIKE ? OR d.donor_email LIKE ?)`;
+      where += ` AND (LOWER(d.donor_name) LIKE LOWER(?) OR LOWER(d.donor_email) LIKE LOWER(?))`;
       params.push(`%${search}%`, `%${search}%`);
     }
     if (status) {
@@ -141,27 +141,32 @@ export default {
   async updateDonation(id, body) {
     const { donor_name, donor_email, amount, donation_date, receipt_status } = body;
 
-    const [beforeRows] = await pool.execute(
-      `SELECT donor_email FROM donations WHERE id = ?`,
-      [id]
-    );
-    const previousEmail = beforeRows[0]?.donor_email;
-
-    const [result] = await pool.execute(
-      `UPDATE donations
-       SET donor_name = ?, donor_email = ?, amount = ?, donation_date = ?, receipt_status = ?
-       WHERE id = ?`,
-      [donor_name, donor_email, amount, donation_date, receipt_status, id]
-    );
-
-    const [afterRows] = await pool.execute(
-      `SELECT donor_email FROM donations WHERE id = ?`,
-      [id]
-    );
-    const nextEmail = afterRows[0]?.donor_email;
+    const conn = await pool.getConnection();
+    let result;
+    let previousEmail;
+    try {
+      await conn.beginTransaction();
+      const [beforeRows] = await conn.execute(
+        `SELECT donor_email FROM donations WHERE id = ? FOR UPDATE`,
+        [id]
+      );
+      previousEmail = beforeRows[0]?.donor_email;
+      [result] = await conn.execute(
+        `UPDATE donations
+         SET donor_name = ?, donor_email = ?, amount = ?, donation_date = ?, receipt_status = ?
+         WHERE id = ?`,
+        [donor_name, donor_email, amount, donation_date, receipt_status, id]
+      );
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
 
     const emails = new Set(
-      [previousEmail, nextEmail].filter((e) => e != null && e !== '')
+      [previousEmail, donor_email].filter((e) => e != null && e !== '')
     );
     for (const email of emails) {
       await syncDonorStats(email);

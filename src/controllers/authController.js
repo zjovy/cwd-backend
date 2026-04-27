@@ -142,8 +142,8 @@ const authController = {
         return res.status(400).json({ error: 'role must be pending, member, or admin' });
       }
 
-      if (role === 'pending' && uid === req.user.firebaseUid) {
-        return res.status(400).json({ error: 'Cannot revoke your own access' });
+      if (uid === req.user.firebaseUid) {
+        return res.status(400).json({ error: 'Cannot change your own role' });
       }
 
       const updatedUser = await userRepository.setRole(uid, role);

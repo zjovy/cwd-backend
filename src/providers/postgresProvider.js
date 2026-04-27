@@ -150,24 +150,32 @@ export default {
   async updateDonation(id, body) {
     const { donor_name, donor_email, amount, donation_date, receipt_status } = body;
 
-    const { rows: beforeRows } = await pgPool.query(
-      `SELECT donor_email FROM donations WHERE id = $1`,
-      [id]
-    );
-    const previousEmail = beforeRows[0]?.donor_email;
-
-    const { rows: updatedRows, rowCount } = await pgPool.query(
-      `UPDATE donations
-       SET donor_name = $1, donor_email = $2, amount = $3, donation_date = $4, receipt_status = $5
-       WHERE id = $6
-       RETURNING donor_email`,
-      [donor_name, donor_email, amount, donation_date, receipt_status, id]
-    );
-
-    const nextEmail = updatedRows[0]?.donor_email;
+    const client = await pgPool.connect();
+    let rowCount;
+    let previousEmail;
+    try {
+      await client.query('BEGIN');
+      const { rows: beforeRows } = await client.query(
+        `SELECT donor_email FROM donations WHERE id = $1 FOR UPDATE`,
+        [id]
+      );
+      previousEmail = beforeRows[0]?.donor_email;
+      ({ rowCount } = await client.query(
+        `UPDATE donations
+         SET donor_name = $1, donor_email = $2, amount = $3, donation_date = $4, receipt_status = $5
+         WHERE id = $6`,
+        [donor_name, donor_email, amount, donation_date, receipt_status, id]
+      ));
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
 
     const emails = new Set(
-      [previousEmail, nextEmail].filter((e) => e != null && e !== '')
+      [previousEmail, donor_email].filter((e) => e != null && e !== '')
     );
     for (const email of emails) {
       await syncDonorStats(email);
