@@ -4,26 +4,21 @@ import userRepository from '../repositories/userRepository.js';
 const authController = {
   async signup(req, res) {
     try {
-      const { email, password, username, firstname, lastname } = req.body;
+      const { email, password, firstname, lastname } = req.body;
 
-      if (!email || !password || !username) {
+      if (!email || !password) {
         return res.status(400).json({
-          error: 'Email, password, and username are required',
+          error: 'Email and password are required',
         });
       }
 
-      const userRecord = await admin.auth().createUser({
-        email,
-        password,
-        displayName: username,
-      });
+      const userRecord = await admin.auth().createUser({ email, password });
 
       const user = await userRepository.createUser({
         uid: userRecord.uid,
-        username,
         email,
         firstname,
-        lastname
+        lastname,
       })
 
       res.status(201).json({
@@ -36,7 +31,7 @@ const authController = {
         return res.status(400).json({ error: 'Email already in use' });
       }
       if (error.code === '23505' || error.code === 'ER_DUP_ENTRY') {
-        return res.status(400).json({ error: 'Username already exists' });
+        return res.status(400).json({ error: 'Email already in use' });
       }
       res.status(500).json({ error: 'Internal server error' });
     }
@@ -113,11 +108,8 @@ const authController = {
 
       const decodedToken = await admin.auth().verifyIdToken(idToken);
 
-      const user = await userRepository.upsertUser({
+      const user = await userRepository.findOrCreate({
         uid: decodedToken.uid,
-        username: decodedToken.name?.replace(/\s+/g, '_').toLowerCase() ||
-          decodedToken.email?.split('@')[0] ||
-          `user_${decodedToken.uid.substring(0, 8)}`,
         email: decodedToken.email,
         firstname: decodedToken.name?.split(' ')[0] || null,
         lastname: decodedToken.name?.split(' ').slice(1).join(' ') || null,
@@ -135,62 +127,34 @@ const authController = {
     } catch (error) {
       console.error('Token handling error:', error);
       if (error.code === '23505' || error.code === 'ER_DUP_ENTRY') {
-        return res
-          .status(400)
-          .json({ error: 'Username already exists, please choose another' });
+        return res.status(400).json({ error: 'Email already in use' });
       }
       res.status(500).json({ error: 'Internal server error' });
     }
   },
 
-  async approveUser(req, res) {
+  async setRole(req, res) {
     try {
       const { uid } = req.params;
-      const { isApproved } = req.body;
+      const { role } = req.body;
 
-      if (typeof isApproved !== 'boolean') {
-        return res.status(400).json({ error: 'isApproved must be a boolean' });
+      if (!['pending', 'member', 'admin'].includes(role)) {
+        return res.status(400).json({ error: 'role must be pending, member, or admin' });
       }
 
-      if (!isApproved && uid === req.user.firebaseUid) {
-        return res.status(400).json({ error: 'Cannot revoke your own access' });
+      if (uid === req.user.firebaseUid) {
+        return res.status(400).json({ error: 'Cannot change your own role' });
       }
 
-      const updatedUser = await userRepository.updateUser(uid, { isApproved });
+      const updatedUser = await userRepository.setRole(uid, role);
 
       if (!updatedUser) {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      res.status(200).json({ message: 'User access updated successfully', user: updatedUser });
+      res.status(200).json({ message: 'User role updated', user: updatedUser });
     } catch (error) {
-      console.error('Approve user error:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  },
-
-  async setAdmin(req, res) {
-    try {
-      const { uid } = req.params;
-      const { isAdmin } = req.body;
-
-      if (typeof isAdmin !== 'boolean') {
-        return res.status(400).json({ error: 'isAdmin must be a boolean' });
-      }
-
-      if (!isAdmin && uid === req.user.firebaseUid) {
-        return res.status(400).json({ error: 'Cannot remove your own admin access' });
-      }
-
-      const updatedUser = await userRepository.updateUser(uid, { isAdmin });
-
-      if (!updatedUser) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-
-      res.status(200).json({ message: 'User admin status updated successfully', user: updatedUser });
-    } catch (error) {
-      console.error('Set admin error:', error);
+      console.error('Set role error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   },

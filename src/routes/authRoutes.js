@@ -14,7 +14,6 @@ router.get('/profile', authMiddleware, authController.getMe);
 router.post('/token', authController.handleToken);
 
 router.get('/users', authMiddleware, adminMiddleware, authController.getAllUsers);
-router.patch('/users/:uid/approve', authMiddleware, adminMiddleware, authController.approveUser);
-router.patch('/users/:uid/admin', authMiddleware, adminMiddleware, authController.setAdmin);
+router.patch('/users/:uid/role', authMiddleware, adminMiddleware, authController.setRole);
 
 export default router;
