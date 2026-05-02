@@ -76,6 +76,16 @@ const donorRepository = {
     return result
   },
 
+  async upsertByEmail({ email, name, phone, address }) {
+    const sql = `
+      INSERT INTO donors (name, email, phone, address, total_donations, donation_count)
+      VALUES (?, ?, ?, ?, 0, 0)
+      ON DUPLICATE KEY UPDATE phone = VALUES(phone), address = VALUES(address)
+    `
+    const [result] = await pool.execute(sql, [name, email, phone ?? null, address ?? null])
+    return result
+  },
+
   async sendThankYouEmail(donorId){
 
   },
