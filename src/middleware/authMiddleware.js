@@ -27,6 +27,9 @@ const authMiddleware = async (req, res, next) => {
     if (error.code === 'auth/invalid-id-token') {
       return res.status(401).json({ error: 'Invalid Firebase ID token' });
     }
+    if (error.code?.startsWith('auth/')) {
+      return res.status(401).json({ error: 'Authentication failed' });
+    }
     res.status(500).json({ error: 'Internal server error during authentication' });
   }
 };
