@@ -3,6 +3,7 @@ import userRepository from '../repositories/userRepository.js';
 
 const authController = {
   async signup(req, res) {
+    let userRecord;
     try {
       const { email, password, firstname, lastname } = req.body;
 
@@ -12,20 +13,23 @@ const authController = {
         });
       }
 
-      const userRecord = await admin.auth().createUser({ email, password });
+      userRecord = await admin.auth().createUser({ email, password });
 
       const user = await userRepository.createUser({
         uid: userRecord.uid,
         email,
         firstname,
         lastname,
-      })
+      });
 
       res.status(201).json({
         message: 'User created successfully',
-        user
+        user,
       });
     } catch (error) {
+      if (userRecord) {
+        await admin.auth().deleteUser(userRecord.uid).catch(() => {});
+      }
       console.error('Signup error:', error);
       if (error.code === 'auth/email-already-exists') {
         return res.status(400).json({ error: 'Email already in use' });
