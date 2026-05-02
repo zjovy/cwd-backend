@@ -26,22 +26,21 @@ CREATE TRIGGER users_updated_at
 BEFORE UPDATE ON users
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-CREATE TABLE IF NOT EXISTS donations (
-  id              SERIAL PRIMARY KEY,
-  donor_name      VARCHAR(255),
-  donor_email     VARCHAR(255),
-  amount          DECIMAL(10,2),
-  donation_date   DATE,
-  receipt_status  VARCHAR(50)
+CREATE TABLE IF NOT EXISTS donors (
+  id         SERIAL PRIMARY KEY,
+  first_name VARCHAR(100) NOT NULL,
+  last_name  VARCHAR(100) NOT NULL,
+  email      VARCHAR(255) NOT NULL UNIQUE,
+  address    VARCHAR(255),
+  phone      VARCHAR(20),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS donors (
-  id              SERIAL PRIMARY KEY,
-  name            VARCHAR(255) NOT NULL,
-  email           VARCHAR(255) UNIQUE,
-  address         VARCHAR(255),
-  phone           VARCHAR(20),
-  total_donations DECIMAL(10,2) DEFAULT 0,
-  donation_count  INT DEFAULT 0,
-  most_recent     DATE
+CREATE TABLE IF NOT EXISTS donations (
+  id             SERIAL PRIMARY KEY,
+  donor_id       INT NOT NULL REFERENCES donors(id) ON DELETE RESTRICT,
+  amount         DECIMAL(10,2),
+  donation_date  DATE,
+  receipt_status VARCHAR(50),
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
