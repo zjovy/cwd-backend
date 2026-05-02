@@ -1,10 +1,7 @@
--- Seed data for local development (MySQL)
--- Run with: npm run seed
+-- Seed data for local development (PostgreSQL / Supabase)
+-- Run with: npm run seed:postgres
 
-SET FOREIGN_KEY_CHECKS = 0;
-TRUNCATE TABLE donations;
-TRUNCATE TABLE donors;
-SET FOREIGN_KEY_CHECKS = 1;
+TRUNCATE donors, donations RESTART IDENTITY CASCADE;
 
 INSERT INTO donors (id, first_name, last_name, email, address, phone) VALUES
   -- Regular donors (6+ donations)
@@ -41,6 +38,9 @@ INSERT INTO donors (id, first_name, last_name, email, address, phone) VALUES
   (28, 'Christopher', 'Lee',        'clee.home@gmail.com',           '209 Ashford Way',     '(630) 555-2798'),
   (29, 'Fatima',      'Al-Hassan',  'fatima.alhassan@outlook.com',   '534 Cliffside Pkwy',  '(773) 555-2809'),
   (30, 'Jordan',      'Blake',      'jordanblake@icloud.com',        '87 Meadowlark Dr',    '(708) 555-2910');
+
+-- Reset sequence so new inserts continue from 31
+SELECT setval('donors_id_seq', 30);
 
 INSERT INTO donations (donor_id, amount, donation_date, receipt_status) VALUES
   -- Alice Johnson (1), 10 donations
@@ -163,3 +163,6 @@ INSERT INTO donations (donor_id, amount, donation_date, receipt_status) VALUES
   (28, 250.00, '2025-11-06', 'sent'),
   (29,  50.00, '2025-06-22', 'sent'),
   (30, 175.00, '2026-02-09', 'sent');
+
+-- Reset donations sequence after explicit-ID inserts
+SELECT setval('donations_id_seq', (SELECT MAX(id) FROM donations));
