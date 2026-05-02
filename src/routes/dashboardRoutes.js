@@ -1,7 +1,12 @@
 import express from 'express';
+
 import dashboardController from '../controllers/dashboardController.js';
+import authMiddleware from '../middleware/authMiddleware.js';
+import requireApprovalMiddleware from '../middleware/requireApprovalMiddleware.js';
 
 const router = express.Router();
+
+router.use(authMiddleware, requireApprovalMiddleware);
 
 router.get('/summary', dashboardController.getDashboardSummary);
 

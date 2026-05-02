@@ -1,20 +1,23 @@
 import admin from '../config/firebase.js';
+import userRepository from '../repositories/userRepository.js';
 
 const authMiddleware = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
     const token =
-      authHeader && authHeader.startsWith('Bearer ')
-        ? authHeader.split(' ')[1]
-        : null;
+      req.cookies.session || req.headers.authorization?.split(' ')[1];
 
     if (!token) {
       return res.status(401).json({ error: 'No Firebase ID token provided' });
     }
 
     const decodedToken = await admin.auth().verifyIdToken(token);
+    const user = await userRepository.findByUid(decodedToken.uid);
 
-    req.user = decodedToken;
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    req.user = user;
     next();
   } catch (error) {
     console.error('Firebase Auth middleware error:', error);
@@ -24,9 +27,10 @@ const authMiddleware = async (req, res, next) => {
     if (error.code === 'auth/invalid-id-token') {
       return res.status(401).json({ error: 'Invalid Firebase ID token' });
     }
-    res
-      .status(500)
-      .json({ error: 'Internal server error during authentication' });
+    if (error.code?.startsWith('auth/')) {
+      return res.status(401).json({ error: 'Authentication failed' });
+    }
+    res.status(500).json({ error: 'Internal server error during authentication' });
   }
 };
 

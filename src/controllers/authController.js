@@ -3,40 +3,39 @@ import userRepository from '../repositories/userRepository.js';
 
 const authController = {
   async signup(req, res) {
+    let userRecord;
     try {
-      const { email, password, username, firstname, lastname } = req.body;
+      const { email, password, firstname, lastname } = req.body;
 
-      if (!email || !password || !username) {
+      if (!email || !password) {
         return res.status(400).json({
-          error: 'Email, password, and username are required',
+          error: 'Email and password are required',
         });
       }
 
-      const userRecord = await admin.auth().createUser({
-        email,
-        password,
-        displayName: username,
-      });
+      userRecord = await admin.auth().createUser({ email, password });
 
       const user = await userRepository.createUser({
         uid: userRecord.uid,
-        username,
         email,
         firstname,
-        lastname
-      })
+        lastname,
+      });
 
       res.status(201).json({
         message: 'User created successfully',
-        user
+        user,
       });
     } catch (error) {
+      if (userRecord) {
+        await admin.auth().deleteUser(userRecord.uid).catch(() => {});
+      }
       console.error('Signup error:', error);
       if (error.code === 'auth/email-already-exists') {
         return res.status(400).json({ error: 'Email already in use' });
       }
       if (error.code === '23505' || error.code === 'ER_DUP_ENTRY') {
-        return res.status(400).json({ error: 'Username already exists' });
+        return res.status(400).json({ error: 'Email already in use' });
       }
       res.status(500).json({ error: 'Internal server error' });
     }
@@ -73,27 +72,7 @@ const authController = {
   },
 
   async getMe(req, res) {
-    try {
-      const token =
-        req.cookies.session || req.headers.authorization?.split(' ')[1];
-
-      if (!token) {
-        return res.status(401).json({ error: 'Not authenticated' });
-      }
-
-      const decodedToken = await admin.auth().verifyIdToken(token);
-
-      const user = await userRepository.findByUid(decodedToken.uid);
-
-      return res.json(user || {
-        firebaseUid: decodedToken.uid,
-        email: decodedToken.email,
-        username: decodedToken.email?.split('@')[0] || 'user',
-      });
-    } catch (error) {
-      console.error('ME endpoint error:', error);
-      res.status(401).json({ error: 'Authentication failed' });
-    }
+    res.json(req.user);
   },
 
   async logout(_req, res) {
@@ -133,11 +112,8 @@ const authController = {
 
       const decodedToken = await admin.auth().verifyIdToken(idToken);
 
-      const user = await userRepository.upsertUser({
+      const user = await userRepository.findOrCreate({
         uid: decodedToken.uid,
-        username: decodedToken.name?.replace(/\s+/g, '_').toLowerCase() ||
-          decodedToken.email?.split('@')[0] ||
-          `user_${decodedToken.uid.substring(0, 8)}`,
         email: decodedToken.email,
         firstname: decodedToken.name?.split(' ')[0] || null,
         lastname: decodedToken.name?.split(' ').slice(1).join(' ') || null,
@@ -155,10 +131,34 @@ const authController = {
     } catch (error) {
       console.error('Token handling error:', error);
       if (error.code === '23505' || error.code === 'ER_DUP_ENTRY') {
-        return res
-          .status(400)
-          .json({ error: 'Username already exists, please choose another' });
+        return res.status(400).json({ error: 'Email already in use' });
       }
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+
+  async setRole(req, res) {
+    try {
+      const { uid } = req.params;
+      const { role } = req.body;
+
+      if (!['pending', 'member', 'admin'].includes(role)) {
+        return res.status(400).json({ error: 'role must be pending, member, or admin' });
+      }
+
+      if (uid === req.user.firebaseUid) {
+        return res.status(400).json({ error: 'Cannot change your own role' });
+      }
+
+      const updatedUser = await userRepository.setRole(uid, role);
+
+      if (!updatedUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      res.status(200).json({ message: 'User role updated', user: updatedUser });
+    } catch (error) {
+      console.error('Set role error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   },
