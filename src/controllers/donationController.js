@@ -15,7 +15,8 @@ const donationController = {
       })
       res.json({ donations: rows, total });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error(err);
+      res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -32,7 +33,8 @@ const donationController = {
       res.json(donation);
 
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error(err);
+      res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -42,11 +44,12 @@ const donationController = {
       const result = await donationRepository.updateDonation(id, req.body)
   
       if (result.affectedRows === 0) {
-        return res.status(404).json({ message: "Donation not found" })
+        return res.status(404).json({ error: "Donation not found" });
       }
       res.json({ message: "Donation updated successfully" })
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      console.error(err);
+      res.status(500).json({ error: 'Internal server error' });
     }
   },
   
@@ -56,11 +59,12 @@ const donationController = {
       const result = await donationRepository.deleteDonation(id)
   
       if (result.affectedRows === 0) {
-        return res.status(404).json({ message: "Donation not found" })
+        return res.status(404).json({ error: "Donation not found" });
       }
       res.json({ message: "Donation deleted successfully" })
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      console.error(err);
+      res.status(500).json({ error: 'Internal server error' });
     }
   },
 
@@ -91,10 +95,17 @@ const donationController = {
 
   async createDonation(req, res) {
     try {
+      const { donor_name, amount } = req.body;
+      
+      if (!donor_name || !amount || isNaN(amount) || Number(amount) <= 0) {
+        return res.status(400).json({ error: 'donor_name and a positive amount are required' });
+      }
+      
       const result = await donationRepository.createDonation(req.body)
       res.status(201).json({ message: 'Donation created successfully', id: result.insertId })
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      console.error(err);
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 

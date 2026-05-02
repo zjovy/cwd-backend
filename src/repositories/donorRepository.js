@@ -87,10 +87,10 @@ const donorRepository = {
   },
 
   async sendThankYouEmail(donorId){
-
+    throw new Error('Not implemented');
   },
   async getThankYouTemplate(donorId) {
-    
+    throw new Error('Not implemented');
   },
 
   async deleteDonor(donorId){
