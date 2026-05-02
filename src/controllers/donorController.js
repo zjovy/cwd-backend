@@ -79,16 +79,19 @@ const donorController = {
   },
 
   async deleteDonor(req, res){
-    const donorId = req.params.id
+    const donorId = req.params.id;
     try {
-      const result = await donorRepository.deleteDonor(donorId)
-      
+      const result = await donorRepository.deleteDonor(donorId);
+
       if (result.affectedRows === 0) {
-        return res.status(404).json({ error: "Donor not found" })
+        return res.status(404).json({ error: 'Donor not found' });
       }
-      
-      res.json({ message: "Donor deleted successfully" })
+
+      res.json({ message: 'Donor deleted successfully' });
     } catch (err) {
+      if (err.statusCode === 409) {
+        return res.status(409).json({ error: err.message });
+      }
       console.error(err);
       res.status(500).json({ error: 'Internal server error' });
     }
@@ -96,17 +99,17 @@ const donorController = {
 
   async createDonor(req, res){
     try {
-      const { name, email } = req.body;
-      
-      if (!name || !email) {
-        return res.status(400).json({ error: 'name and email are required' });
+      const { first_name, last_name, email } = req.body;
+
+      if (!first_name || !last_name || !email) {
+        return res.status(400).json({ error: 'first_name, last_name, and email are required' });
       }
-      
-      const result = await donorRepository.createDonor(req.body)
-      res.status(201).json({ message: 'Donor created successfully', id: result.insertId })
+
+      const result = await donorRepository.createDonor(req.body);
+      res.status(201).json({ message: 'Donor created successfully', id: result.insertId });
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: 'Internal server error' })
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 };

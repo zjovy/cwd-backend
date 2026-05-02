@@ -1,10 +1,11 @@
 import donationRepository from '../repositories/donationRepository.js';
+import donorRepository from '../repositories/donorRepository.js';
 
 const donationController = {
 
   async getDonations(req, res) {
     try {
-      const { search, status, minAmount, maxAmount, page, limit } = req.query
+      const { search, status, minAmount, maxAmount, page, limit } = req.query;
       const { rows, total } = await donationRepository.getDonations({
         search,
         status,
@@ -12,7 +13,7 @@ const donationController = {
         maxAmount,
         page,
         limit,
-      })
+      });
       res.json({ donations: rows, total });
     } catch (err) {
       console.error(err);
@@ -27,11 +28,10 @@ const donationController = {
       const donation = await donationRepository.getById(id);
 
       if (!donation) {
-        return res.status(404).json({ error: "Donation not found" });
+        return res.status(404).json({ error: 'Donation not found' });
       }
 
       res.json(donation);
-
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Internal server error' });
@@ -39,29 +39,36 @@ const donationController = {
   },
 
   async updateDonation(req, res) {
-    const id = req.params.id
+    const id = req.params.id;
     try {
-      const result = await donationRepository.updateDonation(id, req.body)
-  
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ error: "Donation not found" });
+      const donorFields = ['first_name', 'last_name', 'email', 'phone', 'address'];
+      if (donorFields.some((f) => req.body[f] !== undefined)) {
+        return res
+          .status(400)
+          .json({ error: 'Donor fields cannot be updated via the donation endpoint. Use PUT /donors/:id.' });
       }
-      res.json({ message: "Donation updated successfully" })
+
+      const result = await donationRepository.updateDonation(id, req.body);
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: 'Donation not found' });
+      }
+      res.json({ message: 'Donation updated successfully' });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Internal server error' });
     }
   },
-  
+
   async deleteDonation(req, res) {
-    const id = req.params.id
+    const id = req.params.id;
     try {
-      const result = await donationRepository.deleteDonation(id)
-  
+      const result = await donationRepository.deleteDonation(id);
+
       if (result.affectedRows === 0) {
-        return res.status(404).json({ error: "Donation not found" });
+        return res.status(404).json({ error: 'Donation not found' });
       }
-      res.json({ message: "Donation deleted successfully" })
+      res.json({ message: 'Donation deleted successfully' });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Internal server error' });
@@ -74,7 +81,7 @@ const donationController = {
       if (!donation) return res.status(404).json({ error: 'Donation not found' });
 
       const body = req.body?.body || [
-        `Dear ${donation.donor_name},`,
+        `Dear ${donation.first_name} ${donation.last_name},`,
         '',
         `The C&W Market Foundation has received your generous gift of $${parseFloat(donation.amount).toLocaleString()} to support our annual efforts. Your contribution makes a meaningful difference in the work we do for our community.`,
         '',
@@ -85,9 +92,9 @@ const donationController = {
       ].join('\n');
 
       // TODO: configure a real email transport (e.g. nodemailer + SMTP/SendGrid)
-      console.log(`[send-receipt] To: ${donation.donor_email}\n${body}`);
+      console.log(`[send-receipt] To: ${donation.email}\n${body}`);
 
-      res.json({ message: `Receipt sent to ${donation.donor_email}` });
+      res.json({ message: `Receipt sent to ${donation.email}` });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -95,19 +102,34 @@ const donationController = {
 
   async createDonation(req, res) {
     try {
-      const { donor_name, amount } = req.body;
-      
-      if (!donor_name || !amount || isNaN(amount) || Number(amount) <= 0) {
-        return res.status(400).json({ error: 'donor_name and a positive amount are required' });
+      const { first_name, last_name, email, phone, address, amount, donation_date, receipt_status } =
+        req.body;
+
+      if (!first_name || !last_name || !email || !amount || isNaN(amount) || Number(amount) <= 0) {
+        return res
+          .status(400)
+          .json({ error: 'first_name, last_name, email, and a positive amount are required' });
       }
-      
-      const result = await donationRepository.createDonation(req.body)
-      res.status(201).json({ message: 'Donation created successfully', id: result.insertId })
+
+      const donor = await donorRepository.findOrCreateByEmail({
+        first_name,
+        last_name,
+        email,
+        phone,
+        address,
+      });
+      const result = await donationRepository.createDonation({
+        donor_id: donor.id,
+        amount,
+        donation_date,
+        receipt_status,
+      });
+      res.status(201).json({ message: 'Donation created successfully', id: result.insertId });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Internal server error' });
     }
-  }
+  },
 
 };
 
