@@ -1,7 +1,6 @@
 import dashboardRepository from '../repositories/dashboardRepository.js';
 
 const dashboardController = {
-
   async getDashboardSummary(req, res) {
     try {
       const summary = await dashboardRepository.getDashboardSummary();
@@ -31,17 +30,6 @@ const dashboardController = {
       res.status(500).json({ error: 'Internal server error' });
     }
   },
-
-  async getRecentDonations(req, res) {
-    try {
-      const donations = await dashboardRepository.getRecentDonations();
-      res.json(donations);
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  },
-
 };
 
 export default dashboardController;

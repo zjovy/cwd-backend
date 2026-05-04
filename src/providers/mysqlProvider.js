@@ -1,35 +1,4 @@
 import { pool } from '../config/database.js';
-import { emailKey } from '../utils/emailKey.js';
-
-async function syncDonorStats(donorEmail) {
-  const key = emailKey(donorEmail);
-  if (!key) return;
-  await pool.execute(
-    `UPDATE donors d
-     JOIN (
-       SELECT COALESCE(SUM(amount), 0) AS total, COUNT(*) AS cnt, MAX(donation_date) AS recent
-       FROM donations
-       WHERE LOWER(TRIM(COALESCE(donor_email, ''))) = ?
-     ) stats
-     SET d.total_donations = stats.total,
-         d.donation_count  = stats.cnt,
-         d.most_recent     = stats.recent
-     WHERE LOWER(TRIM(COALESCE(d.email, ''))) = ?`,
-    [key, key]
-  );
-}
-
-async function ensureDonor(donor_name, donor_email) {
-  const key = emailKey(donor_email);
-  if (!key) return;
-  const storedEmail = String(donor_email).trim() || null;
-  await pool.execute(
-    `INSERT IGNORE INTO donors (name, email, total_donations, donation_count)
-     VALUES (?, ?, 0, 0)`,
-    [donor_name ?? '', storedEmail]
-  );
-  await syncDonorStats(donor_email);
-}
 
 export default {
   async createUser({ uid, email, firstname, lastname }) {
@@ -41,7 +10,7 @@ export default {
   async findOrCreate({ uid, email, firstname, lastname }) {
     await pool.execute(
       `INSERT IGNORE INTO users (firebase_uid, email, firstname, lastname) VALUES (?, ?, ?, ?)`,
-      [uid, email, firstname, lastname],
+      [uid, email, firstname, lastname]
     );
     return this.findByUid(uid);
   },
@@ -59,11 +28,21 @@ export default {
   },
 
   async setRole(uid, role) {
-    await pool.execute(`UPDATE users SET role = ? WHERE firebase_uid = ?`, [role, uid]);
+    await pool.execute(`UPDATE users SET role = ? WHERE firebase_uid = ?`, [
+      role,
+      uid,
+    ]);
     return this.findByUid(uid);
   },
 
-  async getDonations({ search, status, minAmount, maxAmount, page = 1, limit = 25 }) {
+  async getDonations({
+    search,
+    status,
+    minAmount,
+    maxAmount,
+    page = 1,
+    limit = 25,
+  }) {
     const MAX_LIMIT = 100;
     const pageSize = Math.min(Math.max(parseInt(limit) || 25, 1), MAX_LIMIT);
     const safePage = Math.max(parseInt(page) || 1, 1);
@@ -73,8 +52,8 @@ export default {
     const params = [];
 
     if (search) {
-      where += ` AND (LOWER(d.donor_name) LIKE LOWER(?) OR LOWER(d.donor_email) LIKE LOWER(?))`;
-      params.push(`%${search}%`, `%${search}%`);
+      where += ` AND (dn.first_name LIKE ? OR dn.last_name LIKE ? OR dn.email LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
     if (status) {
       where += ` AND d.receipt_status = ?`;
@@ -90,12 +69,15 @@ export default {
     }
 
     const [[countRows], [rows]] = await Promise.all([
-      pool.execute(`SELECT COUNT(*) AS total FROM donations d ${where}`, params),
       pool.execute(
-        `SELECT d.id, d.donor_name, d.donor_email, d.amount, d.donation_date,
-                d.receipt_status, dn.id AS donor_id
+        `SELECT COUNT(*) AS total FROM donations d JOIN donors dn ON d.donor_id = dn.id ${where}`,
+        params
+      ),
+      pool.execute(
+        `SELECT d.id, d.donor_id, d.amount, d.donation_date, d.receipt_status,
+                dn.first_name, dn.last_name, dn.email
          FROM donations d
-         LEFT JOIN donors dn ON d.donor_email = dn.email
+         JOIN donors dn ON d.donor_id = dn.id
          ${where}
          ORDER BY d.donation_date DESC LIMIT ${pageSize} OFFSET ${offset}`,
         params
@@ -107,83 +89,84 @@ export default {
 
   async getById(id) {
     const [rows] = await pool.execute(
-      `SELECT d.id, d.donor_name, d.donor_email, d.amount, d.donation_date,
-              d.receipt_status, dn.phone, dn.address
+      `SELECT d.id, d.donor_id, d.amount, d.donation_date, d.receipt_status,
+              dn.first_name, dn.last_name, dn.email, dn.phone, dn.address
        FROM donations d
-       LEFT JOIN donors dn ON d.donor_email = dn.email
+       JOIN donors dn ON d.donor_id = dn.id
        WHERE d.id = ?`,
       [id]
     );
     return rows[0] || null;
   },
 
-  async createDonation({ donor_name, donor_email, amount, donation_date, receipt_status }) {
-    const donorEmailNormalized =
-      donor_email != null && donor_email !== ''
-        ? String(donor_email).trim()
-        : donor_email;
-
+  async createDonation({ donor_id, amount, donation_date, receipt_status }) {
     const [result] = await pool.execute(
-      `INSERT INTO donations (donor_name, donor_email, amount, donation_date, receipt_status)
-       VALUES (?, ?, ?, ?, ?)`,
-      [donor_name, donorEmailNormalized, amount, donation_date, receipt_status ?? 'pending']
+      `INSERT INTO donations (donor_id, amount, donation_date, receipt_status)
+       VALUES (?, ?, ?, ?)`,
+      [donor_id, amount, donation_date, receipt_status ?? 'pending']
     );
-
-    await ensureDonor(donor_name, donorEmailNormalized);
-    return result;
+    return { insertId: result.insertId, affectedRows: result.affectedRows };
   },
 
   async updateDonation(id, body) {
-    const { donor_name, donor_email, amount, donation_date, receipt_status } = body;
+    const { amount, donation_date, receipt_status } = body;
+    const [result] = await pool.execute(
+      `UPDATE donations SET amount = ?, donation_date = ?, receipt_status = ? WHERE id = ?`,
+      [amount, donation_date, receipt_status, id]
+    );
+    return { affectedRows: result.affectedRows };
+  },
 
+  async deleteDonation(id) {
     const conn = await pool.getConnection();
-    let result;
-    let previousEmail;
     try {
       await conn.beginTransaction();
-      const [beforeRows] = await conn.execute(
-        `SELECT donor_email FROM donations WHERE id = ? FOR UPDATE`,
+      const [[donation]] = await conn.execute(
+        'SELECT donor_id FROM donations WHERE id = ?',
         [id]
       );
-      previousEmail = beforeRows[0]?.donor_email;
-      [result] = await conn.execute(
-        `UPDATE donations
-         SET donor_name = ?, donor_email = ?, amount = ?, donation_date = ?, receipt_status = ?
-         WHERE id = ?`,
-        [donor_name, donor_email, amount, donation_date, receipt_status, id]
+      if (!donation) {
+        await conn.rollback();
+        return { affectedRows: 0 };
+      }
+      const [del] = await conn.execute('DELETE FROM donations WHERE id = ?', [
+        id,
+      ]);
+      const [[{ cnt }]] = await conn.execute(
+        'SELECT COUNT(*) AS cnt FROM donations WHERE donor_id = ?',
+        [donation.donor_id]
       );
+      if (parseInt(cnt) === 0) {
+        await conn.execute('DELETE FROM donors WHERE id = ?', [
+          donation.donor_id,
+        ]);
+      }
       await conn.commit();
+      return { affectedRows: del.affectedRows };
     } catch (err) {
       await conn.rollback();
       throw err;
     } finally {
       conn.release();
     }
-
-    const emails = new Set(
-      [previousEmail, donor_email].filter((e) => e != null && e !== '')
-    );
-    for (const email of emails) {
-      await syncDonorStats(email);
-    }
-
-    return result;
   },
 
-  async deleteDonation(id) {
-    const [rows] = await pool.execute(
-      `SELECT donor_email FROM donations WHERE id = ?`,
-      [id]
+  async findOrCreateDonorByEmail({
+    first_name,
+    last_name,
+    email,
+    phone,
+    address,
+  }) {
+    await pool.execute(
+      `INSERT IGNORE INTO donors (first_name, last_name, email, phone, address)
+       VALUES (?, ?, ?, ?, ?)`,
+      [first_name, last_name, email, phone, address]
     );
-    const donorEmail = rows[0]?.donor_email;
-
-    const [result] = await pool.execute(`DELETE FROM donations WHERE id = ?`, [id]);
-
-    if (result.affectedRows > 0 && donorEmail) {
-      await syncDonorStats(donorEmail);
-    }
-
-    return result;
+    const [rows] = await pool.execute('SELECT * FROM donors WHERE email = ?', [
+      email,
+    ]);
+    return rows[0];
   },
 
   async getDonors({ search, page = 1, limit = 25 }) {
@@ -191,17 +174,26 @@ export default {
     const pageSize = Math.min(Math.max(parseInt(limit) || 25, 1), MAX_LIMIT);
     const safePage = Math.max(parseInt(page) || 1, 1);
     const offset = (safePage - 1) * pageSize;
+
     let where = 'WHERE 1=1';
     const params = [];
     if (search) {
-      where += ` AND (name LIKE ? OR email LIKE ?)`;
-      params.push(`%${search}%`, `%${search}%`);
+      where += ` AND (d.first_name LIKE ? OR d.last_name LIKE ? OR d.email LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
+
     const [[countRows], [rows]] = await Promise.all([
-      pool.execute(`SELECT COUNT(*) AS total FROM donors ${where}`, params),
+      pool.execute(`SELECT COUNT(*) AS total FROM donors d ${where}`, params),
       pool.execute(
-        `SELECT id, name, email, address, phone, total_donations, donation_count, most_recent
-         FROM donors ${where} ORDER BY most_recent DESC LIMIT ${pageSize} OFFSET ${offset}`,
+        `SELECT d.id, d.first_name, d.last_name, d.email, d.address, d.phone,
+                COUNT(dn.id) AS donation_count,
+                COALESCE(SUM(dn.amount), 0) AS total_donations,
+                MAX(dn.donation_date) AS most_recent
+         FROM donors d
+         LEFT JOIN donations dn ON dn.donor_id = d.id
+         ${where}
+         GROUP BY d.id, d.first_name, d.last_name, d.email, d.address, d.phone
+         ORDER BY most_recent DESC LIMIT ${pageSize} OFFSET ${offset}`,
         params
       ),
     ]);
@@ -209,57 +201,82 @@ export default {
   },
 
   async getDonorById(id) {
-    const [rows] = await pool.execute(
-      `SELECT dn.id, dn.name, dn.email, dn.address, dn.phone,
-              dn.total_donations, dn.donation_count, dn.most_recent,
-              d.amount, d.donation_date
-       FROM donors dn
-       LEFT JOIN donations d ON dn.email = d.donor_email
-       WHERE dn.id = ?`,
+    const [donorRows] = await pool.execute(
+      `SELECT d.id, d.first_name, d.last_name, d.email, d.address, d.phone,
+              COUNT(dn.id) AS donation_count,
+              COALESCE(SUM(dn.amount), 0) AS total_donations,
+              MAX(dn.donation_date) AS most_recent
+       FROM donors d
+       LEFT JOIN donations dn ON dn.donor_id = d.id
+       WHERE d.id = ?
+       GROUP BY d.id, d.first_name, d.last_name, d.email, d.address, d.phone`,
       [id]
     );
-    if (!rows.length) return null;
-    const { id: donorId, name, email, address, phone, total_donations, donation_count, most_recent } = rows[0];
+    if (!donorRows.length) return null;
+
+    const [donationRows] = await pool.execute(
+      `SELECT id, amount, donation_date, receipt_status
+       FROM donations
+       WHERE donor_id = ?
+       ORDER BY donation_date DESC`,
+      [id]
+    );
+
+    const {
+      id: donorId,
+      first_name,
+      last_name,
+      email,
+      address,
+      phone,
+      donation_count,
+      total_donations,
+      most_recent,
+    } = donorRows[0];
     return {
-      id: donorId, name, email, address, phone,
-      total_donations, donation_count, most_recent,
-      donations: rows
-        .filter((r) => r.amount != null)
-        .map((r) => ({ amount: r.amount, donation_date: r.donation_date })),
+      id: donorId,
+      first_name,
+      last_name,
+      email,
+      address,
+      phone,
+      donation_count: parseInt(donation_count),
+      total_donations: parseFloat(total_donations),
+      most_recent,
+      donations: donationRows,
     };
   },
 
-  async updateDonor(id, { name, email, address, phone }) {
-    const [existing] = await pool.execute(
-      `SELECT email FROM donors WHERE id = ?`,
+  async createDonor({ first_name, last_name, email, address, phone }) {
+    const [result] = await pool.execute(
+      `INSERT INTO donors (first_name, last_name, email, address, phone) VALUES (?, ?, ?, ?, ?)`,
+      [first_name, last_name, email, address, phone]
+    );
+    return { insertId: result.insertId, affectedRows: result.affectedRows };
+  },
+
+  async updateDonor(id, { first_name, last_name, email, address, phone }) {
+    const [result] = await pool.execute(
+      `UPDATE donors SET first_name = ?, last_name = ?, email = ?, address = ?, phone = ? WHERE id = ?`,
+      [first_name, last_name, email, address, phone, id]
+    );
+    return { affectedRows: result.affectedRows };
+  },
+
+  async deleteDonor(id) {
+    const [[{ cnt }]] = await pool.execute(
+      'SELECT COUNT(*) AS cnt FROM donations WHERE donor_id = ?',
       [id]
     );
-    const previousEmail = existing[0]?.email;
-    const [result] = await pool.execute(
-      `UPDATE donors SET name = ?, email = ?, address = ?, phone = ? WHERE id = ?`,
-      [name, email, address, phone, id]
-    );
-    if (email && emailKey(email) !== emailKey(previousEmail)) {
-      await syncDonorStats(email);
+    if (parseInt(cnt) > 0) {
+      const err = new Error('Cannot delete donor with existing donations.');
+      err.statusCode = 409;
+      throw err;
     }
-    return result;
-  },
-
-  async deleteDonor(donorId) {
-    const [result] = await pool.execute(
-      `DELETE FROM donors WHERE id = ?`,
-      [donorId]
-    );
-    return result;
-  },
-
-  async createDonor({ name, email, address, phone }) {
-    const [result] = await pool.execute(
-      `INSERT INTO donors (name, email, address, phone, total_donations, donation_count)
-       VALUES (?, ?, ?, ?, 0, 0)`,
-      [name, email, address, phone]
-    );
-    return result;
+    const [result] = await pool.execute('DELETE FROM donors WHERE id = ?', [
+      id,
+    ]);
+    return { affectedRows: result.affectedRows };
   },
 
   async getDashboardSummary() {
@@ -290,7 +307,10 @@ export default {
     const growthRate =
       lastMonthAmount === 0
         ? null
-        : (((thisMonthAmount - lastMonthAmount) / lastMonthAmount) * 100).toFixed(1);
+        : (
+            ((thisMonthAmount - lastMonthAmount) / lastMonthAmount) *
+            100
+          ).toFixed(1);
     return {
       total_amount: parseFloat(allTime[0].total_amount),
       week_amount: parseFloat(thisWeek[0].week_amount),
@@ -321,18 +341,6 @@ export default {
       WHERE donation_date >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 5 MONTH), '%Y-%m-01')
       GROUP BY month_key, month
       ORDER BY month_key
-    `);
-    return rows;
-  },
-
-  async getRecentDonations() {
-    const [rows] = await pool.execute(`
-      SELECT d.id, d.donor_name, d.donor_email, d.amount, d.donation_date,
-             d.receipt_status, dn.id AS donor_id
-      FROM donations d
-      LEFT JOIN donors dn ON d.donor_email = dn.email
-      ORDER BY d.donation_date DESC
-      LIMIT 5
     `);
     return rows;
   },

@@ -16,22 +16,25 @@ CREATE TABLE IF NOT EXISTS users (
   CONSTRAINT valid_role CHECK (role IN ('pending', 'member', 'admin'))
 );
 
-CREATE TABLE IF NOT EXISTS donations (
-  id              INT AUTO_INCREMENT PRIMARY KEY,
-  donor_name      VARCHAR(255),
-  donor_email     VARCHAR(255),
-  amount          DECIMAL(10,2),
-  donation_date   DATE,
-  receipt_status  VARCHAR(50)
+CREATE TABLE IF NOT EXISTS donors (
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  first_name VARCHAR(100) NOT NULL,
+  last_name  VARCHAR(100) NOT NULL,
+  email      VARCHAR(255) NOT NULL,
+  address    VARCHAR(255),
+  phone      VARCHAR(20),
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  UNIQUE KEY idx_donor_email (email)
 );
 
-CREATE TABLE IF NOT EXISTS donors (
-  id              INT AUTO_INCREMENT PRIMARY KEY,
-  name            VARCHAR(255) NOT NULL,
-  email           VARCHAR(255) UNIQUE,
-  address         VARCHAR(255),
-  phone           VARCHAR(20),
-  total_donations DECIMAL(10,2) DEFAULT 0,
-  donation_count  INT DEFAULT 0,
-  most_recent     DATE
+CREATE TABLE IF NOT EXISTS donations (
+  id             INT AUTO_INCREMENT PRIMARY KEY,
+  donor_id       INT NOT NULL,
+  amount         DECIMAL(10,2),
+  donation_date  DATE,
+  receipt_status VARCHAR(50),
+  created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT fk_donation_donor FOREIGN KEY (donor_id) REFERENCES donors(id) ON DELETE RESTRICT
 );
