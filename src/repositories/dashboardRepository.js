@@ -8,7 +8,6 @@ const dashboardRepository = {
   getDashboardSummary: () => provider.getDashboardSummary(),
   getDonationTrend: () => provider.getDonationTrend(),
   getLast6MonthsDonations: () => provider.getLast6MonthsDonations(),
-  getRecentDonations: () => provider.getRecentDonations(),
 };
 
 export default dashboardRepository;

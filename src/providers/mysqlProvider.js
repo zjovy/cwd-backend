@@ -315,16 +315,4 @@ export default {
     `);
     return rows;
   },
-
-  async getRecentDonations() {
-    const [rows] = await pool.execute(`
-      SELECT d.id, d.donor_id, d.amount, d.donation_date, d.receipt_status,
-             dn.first_name, dn.last_name, dn.email
-      FROM donations d
-      JOIN donors dn ON d.donor_id = dn.id
-      ORDER BY d.donation_date DESC
-      LIMIT 5
-    `);
-    return rows;
-  },
 };
