@@ -10,7 +10,7 @@ export default {
   async findOrCreate({ uid, email, firstname, lastname }) {
     await pool.execute(
       `INSERT IGNORE INTO users (firebase_uid, email, firstname, lastname) VALUES (?, ?, ?, ?)`,
-      [uid, email, firstname, lastname],
+      [uid, email, firstname, lastname]
     );
     return this.findByUid(uid);
   },
@@ -28,11 +28,21 @@ export default {
   },
 
   async setRole(uid, role) {
-    await pool.execute(`UPDATE users SET role = ? WHERE firebase_uid = ?`, [role, uid]);
+    await pool.execute(`UPDATE users SET role = ? WHERE firebase_uid = ?`, [
+      role,
+      uid,
+    ]);
     return this.findByUid(uid);
   },
 
-  async getDonations({ search, status, minAmount, maxAmount, page = 1, limit = 25 }) {
+  async getDonations({
+    search,
+    status,
+    minAmount,
+    maxAmount,
+    page = 1,
+    limit = 25,
+  }) {
     const MAX_LIMIT = 100;
     const pageSize = Math.min(Math.max(parseInt(limit) || 25, 1), MAX_LIMIT);
     const safePage = Math.max(parseInt(page) || 1, 1);
@@ -119,13 +129,17 @@ export default {
         await conn.rollback();
         return { affectedRows: 0 };
       }
-      const [del] = await conn.execute('DELETE FROM donations WHERE id = ?', [id]);
+      const [del] = await conn.execute('DELETE FROM donations WHERE id = ?', [
+        id,
+      ]);
       const [[{ cnt }]] = await conn.execute(
         'SELECT COUNT(*) AS cnt FROM donations WHERE donor_id = ?',
         [donation.donor_id]
       );
       if (parseInt(cnt) === 0) {
-        await conn.execute('DELETE FROM donors WHERE id = ?', [donation.donor_id]);
+        await conn.execute('DELETE FROM donors WHERE id = ?', [
+          donation.donor_id,
+        ]);
       }
       await conn.commit();
       return { affectedRows: del.affectedRows };
@@ -137,16 +151,21 @@ export default {
     }
   },
 
-  async findOrCreateDonorByEmail({ first_name, last_name, email, phone, address }) {
+  async findOrCreateDonorByEmail({
+    first_name,
+    last_name,
+    email,
+    phone,
+    address,
+  }) {
     await pool.execute(
       `INSERT IGNORE INTO donors (first_name, last_name, email, phone, address)
        VALUES (?, ?, ?, ?, ?)`,
       [first_name, last_name, email, phone, address]
     );
-    const [rows] = await pool.execute(
-      'SELECT * FROM donors WHERE email = ?',
-      [email]
-    );
+    const [rows] = await pool.execute('SELECT * FROM donors WHERE email = ?', [
+      email,
+    ]);
     return rows[0];
   },
 
@@ -203,10 +222,24 @@ export default {
       [id]
     );
 
-    const { id: donorId, first_name, last_name, email, address, phone,
-            donation_count, total_donations, most_recent } = donorRows[0];
+    const {
+      id: donorId,
+      first_name,
+      last_name,
+      email,
+      address,
+      phone,
+      donation_count,
+      total_donations,
+      most_recent,
+    } = donorRows[0];
     return {
-      id: donorId, first_name, last_name, email, address, phone,
+      id: donorId,
+      first_name,
+      last_name,
+      email,
+      address,
+      phone,
       donation_count: parseInt(donation_count),
       total_donations: parseFloat(total_donations),
       most_recent,
@@ -240,7 +273,9 @@ export default {
       err.statusCode = 409;
       throw err;
     }
-    const [result] = await pool.execute('DELETE FROM donors WHERE id = ?', [id]);
+    const [result] = await pool.execute('DELETE FROM donors WHERE id = ?', [
+      id,
+    ]);
     return { affectedRows: result.affectedRows };
   },
 
@@ -272,7 +307,10 @@ export default {
     const growthRate =
       lastMonthAmount === 0
         ? null
-        : (((thisMonthAmount - lastMonthAmount) / lastMonthAmount) * 100).toFixed(1);
+        : (
+            ((thisMonthAmount - lastMonthAmount) / lastMonthAmount) *
+            100
+          ).toFixed(1);
     return {
       total_amount: parseFloat(allTime[0].total_amount),
       week_amount: parseFloat(thisWeek[0].week_amount),

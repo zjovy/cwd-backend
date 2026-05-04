@@ -12,7 +12,7 @@ export default {
       `INSERT INTO users (firebase_uid, email, firstname, lastname)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (firebase_uid) DO NOTHING`,
-      [uid, email, firstname, lastname],
+      [uid, email, firstname, lastname]
     );
     return this.findByUid(uid);
   },
@@ -30,11 +30,21 @@ export default {
   },
 
   async setRole(uid, role) {
-    await pgPool.query(`UPDATE users SET role = $1 WHERE firebase_uid = $2`, [role, uid]);
+    await pgPool.query(`UPDATE users SET role = $1 WHERE firebase_uid = $2`, [
+      role,
+      uid,
+    ]);
     return this.findByUid(uid);
   },
 
-  async getDonations({ search, status, minAmount, maxAmount, page = 1, limit = 25 }) {
+  async getDonations({
+    search,
+    status,
+    minAmount,
+    maxAmount,
+    page = 1,
+    limit = 25,
+  }) {
     const MAX_LIMIT = 100;
     const pageSize = Math.min(Math.max(parseInt(limit) || 25, 1), MAX_LIMIT);
     const safePage = Math.max(parseInt(page) || 1, 1);
@@ -81,7 +91,10 @@ export default {
       ),
     ]);
 
-    return { rows: rowsResult.rows, total: parseInt(countResult.rows[0].total) };
+    return {
+      rows: rowsResult.rows,
+      total: parseInt(countResult.rows[0].total),
+    };
   },
 
   async getById(id) {
@@ -119,21 +132,29 @@ export default {
     const client = await pgPool.connect();
     try {
       await client.query('BEGIN');
-      const { rows: [donation] } = await client.query(
-        'SELECT donor_id FROM donations WHERE id = $1',
-        [id]
-      );
+      const {
+        rows: [donation],
+      } = await client.query('SELECT donor_id FROM donations WHERE id = $1', [
+        id,
+      ]);
       if (!donation) {
         await client.query('ROLLBACK');
         return { affectedRows: 0 };
       }
-      const { rowCount } = await client.query('DELETE FROM donations WHERE id = $1', [id]);
-      const { rows: [{ cnt }] } = await client.query(
+      const { rowCount } = await client.query(
+        'DELETE FROM donations WHERE id = $1',
+        [id]
+      );
+      const {
+        rows: [{ cnt }],
+      } = await client.query(
         'SELECT COUNT(*) AS cnt FROM donations WHERE donor_id = $1',
         [donation.donor_id]
       );
       if (parseInt(cnt) === 0) {
-        await client.query('DELETE FROM donors WHERE id = $1', [donation.donor_id]);
+        await client.query('DELETE FROM donors WHERE id = $1', [
+          donation.donor_id,
+        ]);
       }
       await client.query('COMMIT');
       return { affectedRows: rowCount };
@@ -145,7 +166,13 @@ export default {
     }
   },
 
-  async findOrCreateDonorByEmail({ first_name, last_name, email, phone, address }) {
+  async findOrCreateDonorByEmail({
+    first_name,
+    last_name,
+    email,
+    phone,
+    address,
+  }) {
     await pgPool.query(
       `INSERT INTO donors (first_name, last_name, email, phone, address)
        VALUES ($1, $2, $3, $4, $5)
@@ -189,7 +216,10 @@ export default {
         [...params, pageSize, offset]
       ),
     ]);
-    return { rows: rowsResult.rows, total: parseInt(countResult.rows[0].total) };
+    return {
+      rows: rowsResult.rows,
+      total: parseInt(countResult.rows[0].total),
+    };
   },
 
   async getDonorById(id) {
@@ -214,10 +244,24 @@ export default {
       [id]
     );
 
-    const { id: donorId, first_name, last_name, email, address, phone,
-            donation_count, total_donations, most_recent } = donorRows[0];
+    const {
+      id: donorId,
+      first_name,
+      last_name,
+      email,
+      address,
+      phone,
+      donation_count,
+      total_donations,
+      most_recent,
+    } = donorRows[0];
     return {
-      id: donorId, first_name, last_name, email, address, phone,
+      id: donorId,
+      first_name,
+      last_name,
+      email,
+      address,
+      phone,
       donation_count: parseInt(donation_count),
       total_donations: parseFloat(total_donations),
       most_recent,
@@ -244,7 +288,9 @@ export default {
   },
 
   async deleteDonor(id) {
-    const { rows: [{ cnt }] } = await pgPool.query(
+    const {
+      rows: [{ cnt }],
+    } = await pgPool.query(
       'SELECT COUNT(*) AS cnt FROM donations WHERE donor_id = $1',
       [id]
     );
@@ -253,37 +299,47 @@ export default {
       err.statusCode = 409;
       throw err;
     }
-    const { rowCount } = await pgPool.query('DELETE FROM donors WHERE id = $1', [id]);
+    const { rowCount } = await pgPool.query(
+      'DELETE FROM donors WHERE id = $1',
+      [id]
+    );
     return { affectedRows: rowCount };
   },
 
   async getDashboardSummary() {
-    const [allTime, thisWeek, lastMonth, thisMonth, donors] = await Promise.all([
-      pgPool.query(`SELECT COALESCE(SUM(amount), 0) AS total_amount FROM donations`),
-      pgPool.query(`
+    const [allTime, thisWeek, lastMonth, thisMonth, donors] = await Promise.all(
+      [
+        pgPool.query(
+          `SELECT COALESCE(SUM(amount), 0) AS total_amount FROM donations`
+        ),
+        pgPool.query(`
         SELECT COALESCE(SUM(amount), 0) AS week_amount, COUNT(*) AS week_count
         FROM donations
         WHERE donation_date >= NOW() - INTERVAL '7 days'
       `),
-      pgPool.query(`
+        pgPool.query(`
         SELECT COALESCE(SUM(amount), 0) AS last_month_amount
         FROM donations
         WHERE donation_date >= DATE_TRUNC('month', NOW() - INTERVAL '2 months')
           AND donation_date < DATE_TRUNC('month', NOW() - INTERVAL '1 month')
       `),
-      pgPool.query(`
+        pgPool.query(`
         SELECT COALESCE(SUM(amount), 0) AS this_month_amount
         FROM donations
         WHERE donation_date >= DATE_TRUNC('month', NOW())
       `),
-      pgPool.query(`SELECT COUNT(*) AS total_donors FROM donors`),
-    ]);
+        pgPool.query(`SELECT COUNT(*) AS total_donors FROM donors`),
+      ]
+    );
     const lastMonthAmount = parseFloat(lastMonth.rows[0].last_month_amount);
     const thisMonthAmount = parseFloat(thisMonth.rows[0].this_month_amount);
     const growthRate =
       lastMonthAmount === 0
         ? null
-        : (((thisMonthAmount - lastMonthAmount) / lastMonthAmount) * 100).toFixed(1);
+        : (
+            ((thisMonthAmount - lastMonthAmount) / lastMonthAmount) *
+            100
+          ).toFixed(1);
     return {
       total_amount: parseFloat(allTime.rows[0].total_amount),
       week_amount: parseFloat(thisWeek.rows[0].week_amount),

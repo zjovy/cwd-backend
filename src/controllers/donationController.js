@@ -2,7 +2,6 @@ import donationRepository from '../repositories/donationRepository.js';
 import donorRepository from '../repositories/donorRepository.js';
 
 const donationController = {
-
   async getDonations(req, res) {
     try {
       const { search, status, minAmount, maxAmount, page, limit } = req.query;
@@ -41,11 +40,20 @@ const donationController = {
   async updateDonation(req, res) {
     const id = req.params.id;
     try {
-      const donorFields = ['first_name', 'last_name', 'email', 'phone', 'address'];
+      const donorFields = [
+        'first_name',
+        'last_name',
+        'email',
+        'phone',
+        'address',
+      ];
       if (donorFields.some((f) => req.body[f] !== undefined)) {
         return res
           .status(400)
-          .json({ error: 'Donor fields cannot be updated via the donation endpoint. Use PUT /donors/:id.' });
+          .json({
+            error:
+              'Donor fields cannot be updated via the donation endpoint. Use PUT /donors/:id.',
+          });
       }
 
       const result = await donationRepository.updateDonation(id, req.body);
@@ -78,18 +86,21 @@ const donationController = {
   async sendReceipt(req, res) {
     try {
       const donation = await donationRepository.getById(req.params.id);
-      if (!donation) return res.status(404).json({ error: 'Donation not found' });
+      if (!donation)
+        return res.status(404).json({ error: 'Donation not found' });
 
-      const body = req.body?.body || [
-        `Dear ${donation.first_name} ${donation.last_name},`,
-        '',
-        `The C&W Market Foundation has received your generous gift of $${parseFloat(donation.amount).toLocaleString()} to support our annual efforts. Your contribution makes a meaningful difference in the work we do for our community.`,
-        '',
-        'Thank you for your generosity and continued support.',
-        '',
-        'Sincerely,',
-        'The C&W Market Foundation',
-      ].join('\n');
+      const body =
+        req.body?.body ||
+        [
+          `Dear ${donation.first_name} ${donation.last_name},`,
+          '',
+          `The C&W Market Foundation has received your generous gift of $${parseFloat(donation.amount).toLocaleString()} to support our annual efforts. Your contribution makes a meaningful difference in the work we do for our community.`,
+          '',
+          'Thank you for your generosity and continued support.',
+          '',
+          'Sincerely,',
+          'The C&W Market Foundation',
+        ].join('\n');
 
       // TODO: configure a real email transport (e.g. nodemailer + SMTP/SendGrid)
       console.log(`[send-receipt] To: ${donation.email}\n${body}`);
@@ -102,13 +113,31 @@ const donationController = {
 
   async createDonation(req, res) {
     try {
-      const { first_name, last_name, email, phone, address, amount, donation_date, receipt_status } =
-        req.body;
+      const {
+        first_name,
+        last_name,
+        email,
+        phone,
+        address,
+        amount,
+        donation_date,
+        receipt_status,
+      } = req.body;
 
-      if (!first_name || !last_name || !email || !amount || isNaN(amount) || Number(amount) <= 0) {
+      if (
+        !first_name ||
+        !last_name ||
+        !email ||
+        !amount ||
+        isNaN(amount) ||
+        Number(amount) <= 0
+      ) {
         return res
           .status(400)
-          .json({ error: 'first_name, last_name, email, and a positive amount are required' });
+          .json({
+            error:
+              'first_name, last_name, email, and a positive amount are required',
+          });
       }
 
       const donor = await donorRepository.findOrCreateByEmail({
@@ -124,13 +153,17 @@ const donationController = {
         donation_date,
         receipt_status,
       });
-      res.status(201).json({ message: 'Donation created successfully', id: result.insertId });
+      res
+        .status(201)
+        .json({
+          message: 'Donation created successfully',
+          id: result.insertId,
+        });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Internal server error' });
     }
   },
-
 };
 
 export default donationController;

@@ -15,7 +15,17 @@ router.post('/logout', authMiddleware, authController.logout);
 router.get('/me', authMiddleware, authController.getMe);
 router.post('/token', authLimiter, authController.handleToken);
 
-router.get('/users', authMiddleware, adminMiddleware, authController.getAllUsers);
-router.patch('/users/:uid/role', authMiddleware, adminMiddleware, authController.setRole);
+router.get(
+  '/users',
+  authMiddleware,
+  adminMiddleware,
+  authController.getAllUsers
+);
+router.patch(
+  '/users/:uid/role',
+  authMiddleware,
+  adminMiddleware,
+  authController.setRole
+);
 
 export default router;

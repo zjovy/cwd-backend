@@ -1,12 +1,15 @@
 import donorRepository from '../repositories/donorRepository.js';
 
 const donorController = {
-
   async getDonors(req, res) {
-    const { search, page, limit } = req.query
+    const { search, page, limit } = req.query;
     try {
-      const {rows, total } = await donorRepository.getDonors({search, page, limit});
-      res.json({donors: rows, total});
+      const { rows, total } = await donorRepository.getDonors({
+        search,
+        page,
+        limit,
+      });
+      res.json({ donors: rows, total });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Internal server error' });
@@ -20,56 +23,54 @@ const donorController = {
       const donor = await donorRepository.getById(id);
 
       if (!donor) {
-        return res.status(404).json({ error: "Donor not found" });
+        return res.status(404).json({ error: 'Donor not found' });
       }
 
       res.json(donor);
-
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Internal server error' });
     }
   },
 
-  async updateDonorDetail(req, res){
+  async updateDonorDetail(req, res) {
     const id = req.params.id;
-    try{
+    try {
       const result = await donorRepository.updateDonor(id, req.body);
       if (result.affectedRows === 0) {
-        return res.status(404).json({ error: "Donor not found" })
+        return res.status(404).json({ error: 'Donor not found' });
       }
-      res.json({ message: "Donor updated successfully" })
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({error: 'Internal server error'});
-    }
-  },
-
-  async sendThankYouEmail(req, res){
-    const donorId = req.params.id
-    try {
-      await donorRepository.sendThankYouEmail(donorId)
-      res.json({ message: "Email sent successfully" })
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-
-  },
-
-  async downloadThankYouTemplate(req, res){
-    const donorId = req.params.id
-    try {
-      const template = await donorRepository.getThankYouTemplate(donorId)
-      res.setHeader("Content-Type", "text/plain")
-      res.send(template)
+      res.json({ message: 'Donor updated successfully' });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Internal server error' });
     }
   },
 
-  async deleteDonor(req, res){
+  async sendThankYouEmail(req, res) {
+    const donorId = req.params.id;
+    try {
+      await donorRepository.sendThankYouEmail(donorId);
+      res.json({ message: 'Email sent successfully' });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+
+  async downloadThankYouTemplate(req, res) {
+    const donorId = req.params.id;
+    try {
+      const template = await donorRepository.getThankYouTemplate(donorId);
+      res.setHeader('Content-Type', 'text/plain');
+      res.send(template);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+
+  async deleteDonor(req, res) {
     const donorId = req.params.id;
     try {
       const result = await donorRepository.deleteDonor(donorId);
@@ -88,21 +89,25 @@ const donorController = {
     }
   },
 
-  async createDonor(req, res){
+  async createDonor(req, res) {
     try {
       const { first_name, last_name, email } = req.body;
 
       if (!first_name || !last_name || !email) {
-        return res.status(400).json({ error: 'first_name, last_name, and email are required' });
+        return res
+          .status(400)
+          .json({ error: 'first_name, last_name, and email are required' });
       }
 
       const result = await donorRepository.createDonor(req.body);
-      res.status(201).json({ message: 'Donor created successfully', id: result.insertId });
+      res
+        .status(201)
+        .json({ message: 'Donor created successfully', id: result.insertId });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Internal server error' });
     }
-  }
+  },
 };
 
 export default donorController;
