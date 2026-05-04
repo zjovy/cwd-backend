@@ -45,15 +45,6 @@ const donorController = {
     }
   },
 
-  async upsertByEmail(req, res) {
-    try {
-      await donorRepository.upsertByEmail(req.body);
-      res.json({ message: 'Donor contact updated' });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  },
-
   async sendThankYouEmail(req, res){
     const donorId = req.params.id
     try {

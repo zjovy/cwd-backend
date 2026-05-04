@@ -257,15 +257,6 @@ export default {
     return { affectedRows: rowCount };
   },
 
-  async upsertDonorByEmail({ email, first_name, last_name, phone, address }) {
-    await pgPool.query(
-      `INSERT INTO donors (first_name, last_name, email, phone, address)
-       VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (email) DO UPDATE SET phone = EXCLUDED.phone, address = EXCLUDED.address`,
-      [first_name, last_name, email, phone, address]
-    );
-  },
-
   async getDashboardSummary() {
     const [allTime, thisWeek, lastMonth, thisMonth, donors] = await Promise.all([
       pgPool.query(`SELECT COALESCE(SUM(amount), 0) AS total_amount FROM donations`),

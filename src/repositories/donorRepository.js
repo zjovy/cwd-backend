@@ -10,7 +10,6 @@ const donorRepository = {
   createDonor: (data) => p.createDonor(data),
   updateDonor: (id, body) => p.updateDonor(id, body),
   deleteDonor: (id) => p.deleteDonor(id),
-  upsertByEmail: (data) => p.upsertDonorByEmail(data),
   findOrCreateByEmail: (data) => p.findOrCreateDonorByEmail(data),
 
   async sendThankYouEmail() {

@@ -244,15 +244,6 @@ export default {
     return { affectedRows: result.affectedRows };
   },
 
-  async upsertDonorByEmail({ email, first_name, last_name, phone, address }) {
-    await pool.execute(
-      `INSERT INTO donors (first_name, last_name, email, phone, address)
-       VALUES (?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE phone = VALUES(phone), address = VALUES(address)`,
-      [first_name, last_name, email, phone, address]
-    );
-  },
-
   async getDashboardSummary() {
     const [allTime] = await pool.execute(
       `SELECT COALESCE(SUM(amount), 0) AS total_amount FROM donations`

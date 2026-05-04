@@ -9,7 +9,6 @@ const router = express.Router();
 router.use(authMiddleware, requireApprovalMiddleware);
 
 router.get('/', donorController.getDonors);
-router.patch('/upsert-by-email', donorController.upsertByEmail);
 router.get('/:id', donorController.getDonorDetail);
 router.put('/:id', donorController.updateDonorDetail);
 router.delete('/:id', donorController.deleteDonor);
