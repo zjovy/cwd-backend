@@ -1,0 +1,39 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ec2-user/cwd-backend
+
+            # Pull latest code
+            git pull origin main
+
+            # Install production dependencies
+            npm ci --omit=dev
+
+            # Refresh secrets from Secrets Manager
+            ./scripts/fetch-secrets.sh
+
+            # Restart the app
+            pm2 restart cwd-backend || pm2 start ecosystem.config.cjs
+
+            # Health check
+            sleep 3
+            curl -f http://localhost:5050/health || exit 1
+
+            echo "Deploy successful!"
