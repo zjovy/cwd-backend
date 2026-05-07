@@ -3,3 +3,10 @@
 *.ini
 node_modules/
 firebase-service-account.json
+
+# CDK
+infra/cdk.out/
+infra/node_modules/
+
+# SSH keys
+*.pem
