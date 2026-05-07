@@ -92,6 +92,46 @@ mysql -h $(echo $DB_SECRET | jq -r '.host') -u $(echo $DB_SECRET | jq -r '.usern
 pm2 restart cwd-backend
 ```
 
+### Make a user an admin
+
+New users who sign in get a default (non-admin) role. To grant admin access, we need to update their role in the database.
+
+**Option A: From the CLI (requires AWS CLI + SSH key)**
+
+```bash
+# SSH into EC2
+ssh -i cwd-backend-key.pem ec2-user@32.194.5.150
+
+# Connect to the database
+DB_SECRET=$(aws secretsmanager get-secret-value --secret-id cwd/db-credentials --region us-east-1 --query SecretString --output text)
+mysql -h $(echo $DB_SECRET | jq -r '.host') -u $(echo $DB_SECRET | jq -r '.username') -p$(echo $DB_SECRET | jq -r '.password') cwd_db
+
+# Then run:
+UPDATE users SET role = 'admin' WHERE email = 'their-email@example.com';
+```
+
+**Option B: From the AWS Console (no CLI needed)**
+
+1. Go to [AWS Console](https://console.aws.amazon.com) → **EC2** → **Instances** → select our instance (`i-0475ff86fd8ff4cce`)
+2. Click **Connect** → **Session Manager** → **Connect** (this opens a terminal in the browser, no SSH key needed)
+3. Run:
+   ```bash
+   sudo -u ec2-user bash
+   cd /home/ec2-user/cwd-backend
+   DB_SECRET=$(aws secretsmanager get-secret-value --secret-id cwd/db-credentials --region us-east-1 --query SecretString --output text)
+   mysql -h $(echo $DB_SECRET | jq -r '.host') -u $(echo $DB_SECRET | jq -r '.username') -p$(echo $DB_SECRET | jq -r '.password') cwd_db
+   ```
+4. Then run:
+   ```sql
+   UPDATE users SET role = 'admin' WHERE email = 'their-email@example.com';
+   ```
+
+**To verify it worked:**
+
+```sql
+SELECT email, role FROM users;
+```
+
 ### Update Firebase credentials
 
 ```
