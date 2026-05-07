@@ -141,8 +141,11 @@ const donationController = {
         return res.status(400).json({ error: 'Invalid email format' });
       }
 
-      if (phone && !/^\+?[\d\s\-().]{7,20}$/.test(phone)) {
-        return res.status(400).json({ error: 'Invalid phone number format' });
+      if (phone) {
+        if (/[^\d+() -]/.test(String(phone)))
+          return res.status(400).json({ error: 'Invalid phone number format' });
+        if (String(phone).replace(/\D/g, '').length < 7)
+          return res.status(400).json({ error: 'Invalid phone number format' });
       }
 
       const donor = await donorRepository.findOrCreateByEmail({

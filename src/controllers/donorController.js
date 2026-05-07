@@ -36,6 +36,13 @@ const donorController = {
   async updateDonorDetail(req, res) {
     const id = req.params.id;
     try {
+      const { phone } = req.body;
+      if (phone) {
+        if (/[^\d+() -]/.test(String(phone)))
+          return res.status(400).json({ error: 'Invalid phone number format' });
+        if (String(phone).replace(/\D/g, '').length < 7)
+          return res.status(400).json({ error: 'Invalid phone number format' });
+      }
       const result = await donorRepository.updateDonor(id, req.body);
       if (result.affectedRows === 0) {
         return res.status(404).json({ error: 'Donor not found' });
@@ -91,12 +98,19 @@ const donorController = {
 
   async createDonor(req, res) {
     try {
-      const { first_name, last_name, email } = req.body;
+      const { first_name, last_name, email, phone } = req.body;
 
       if (!first_name || !last_name || !email) {
         return res
           .status(400)
           .json({ error: 'first_name, last_name, and email are required' });
+      }
+
+      if (phone) {
+        if (/[^\d+() -]/.test(String(phone)))
+          return res.status(400).json({ error: 'Invalid phone number format' });
+        if (String(phone).replace(/\D/g, '').length < 7)
+          return res.status(400).json({ error: 'Invalid phone number format' });
       }
 
       const result = await donorRepository.createDonor(req.body);
