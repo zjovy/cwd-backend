@@ -124,20 +124,28 @@ const donationController = {
         receipt_status,
       } = req.body;
 
-      if (
-        !first_name ||
-        !last_name ||
-        !email ||
-        !amount ||
-        isNaN(amount) ||
-        Number(amount) <= 0
-      ) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'first_name, last_name, email, and a positive amount are required',
-          });
+      if (!first_name || !last_name || !email || !amount || !donation_date) {
+        return res.status(400).json({
+          error:
+            'first_name, last_name, email, amount, and donation_date are required',
+        });
+      }
+
+      if (isNaN(amount) || Number(amount) <= 0 || !/^\d+(\.\d{1,2})?$/.test(String(amount))) {
+        return res.status(400).json({
+          error: 'amount must be a positive number with at most 2 decimal places',
+        });
+      }
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
+
+      if (phone) {
+        if (/[^\d+() -]/.test(String(phone)))
+          return res.status(400).json({ error: 'Invalid phone number format' });
+        if (String(phone).replace(/\D/g, '').length < 7)
+          return res.status(400).json({ error: 'Invalid phone number format' });
       }
 
       const donor = await donorRepository.findOrCreateByEmail({
