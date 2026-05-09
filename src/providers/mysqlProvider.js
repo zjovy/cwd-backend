@@ -40,12 +40,17 @@ export default {
     status,
     minAmount,
     maxAmount,
+    startDate,
+    endDate,
     page = 1,
-    limit = 25,
+    limit,
   }) {
+    const hasDateFilter = startDate || endDate;
     const MAX_LIMIT = 100;
-    const pageSize = Math.min(Math.max(parseInt(limit) || 25, 1), MAX_LIMIT);
-    const safePage = Math.max(parseInt(page) || 1, 1);
+    const pageSize = hasDateFilter && !limit
+      ? 10000
+      : Math.min(Math.max(parseInt(limit) || 25, 1), MAX_LIMIT);
+    const safePage = hasDateFilter && !limit ? 1 : Math.max(parseInt(page) || 1, 1);
     const offset = (safePage - 1) * pageSize;
 
     let where = 'WHERE 1=1';
@@ -66,6 +71,14 @@ export default {
     if (maxAmount) {
       where += ` AND d.amount <= ?`;
       params.push(maxAmount);
+    }
+    if (startDate) {
+      where += ` AND d.donation_date >= ?`;
+      params.push(startDate);
+    }
+    if (endDate) {
+      where += ` AND d.donation_date <= ?`;
+      params.push(endDate);
     }
 
     const [[countRows], [rows]] = await Promise.all([

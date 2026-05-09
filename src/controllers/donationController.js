@@ -4,12 +4,14 @@ import donorRepository from '../repositories/donorRepository.js';
 const donationController = {
   async getDonations(req, res) {
     try {
-      const { search, status, minAmount, maxAmount, page, limit } = req.query;
+      const { search, status, minAmount, maxAmount, startDate, endDate, page, limit } = req.query;
       const { rows, total } = await donationRepository.getDonations({
         search,
         status,
         minAmount,
         maxAmount,
+        startDate,
+        endDate,
         page,
         limit,
       });
