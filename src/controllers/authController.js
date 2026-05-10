@@ -22,9 +22,12 @@ const authController = {
         lastname,
       });
 
+      const customToken = await admin.auth().createCustomToken(userRecord.uid);
+
       res.status(201).json({
         message: 'User created successfully',
         user,
+        customToken,
       });
     } catch (error) {
       if (userRecord) {
