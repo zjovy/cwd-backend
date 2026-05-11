@@ -128,6 +128,14 @@ export default {
     return { affectedRows: rowCount };
   },
 
+  async updateReceiptStatus(id, receipt_status) {
+    const { rowCount } = await pgPool.query(
+      `UPDATE donations SET receipt_status = $1 WHERE id = $2`,
+      [receipt_status, id]
+    );
+    return { affectedRows: rowCount };
+  },
+
   async deleteDonation(id) {
     const client = await pgPool.connect();
     try {
