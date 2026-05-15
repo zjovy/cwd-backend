@@ -1,10 +1,13 @@
 import donationRepository from '../repositories/donationRepository.js';
 import donorRepository from '../repositories/donorRepository.js';
+import { validateDateRange } from '../utils/dateValidation.js';
 
 const donationController = {
   async getDonations(req, res) {
     try {
       const { search, status, minAmount, maxAmount, startDate, endDate, page, limit } = req.query;
+      const dateError = validateDateRange(startDate, endDate);
+      if (dateError) return res.status(400).json({ error: dateError });
       const { rows, total } = await donationRepository.getDonations({
         search,
         status,

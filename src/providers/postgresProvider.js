@@ -45,14 +45,11 @@ export default {
     startDate,
     endDate,
     page = 1,
-    limit,
+    limit = 25,
   }) {
-    const hasDateFilter = startDate || endDate;
     const MAX_LIMIT = 100;
-    const pageSize = hasDateFilter && !limit
-      ? 10000
-      : Math.min(Math.max(parseInt(limit) || 25, 1), MAX_LIMIT);
-    const safePage = hasDateFilter && !limit ? 1 : Math.max(parseInt(page) || 1, 1);
+    const pageSize = Math.min(Math.max(parseInt(limit) || 25, 1), MAX_LIMIT);
+    const safePage = Math.max(parseInt(page) || 1, 1);
     const offset = (safePage - 1) * pageSize;
 
     let where = 'WHERE 1=1';
@@ -388,6 +385,65 @@ export default {
       GROUP BY month_key, month
       ORDER BY month_key
     `);
+    return rows;
+  },
+
+  async getRangeSummary({ startDate, endDate } = {}) {
+    let where = 'WHERE 1=1';
+    const params = [];
+    let i = 1;
+    if (startDate) {
+      where += ` AND donation_date >= $${i++}`;
+      params.push(startDate);
+    }
+    if (endDate) {
+      where += ` AND donation_date <= $${i++}`;
+      params.push(endDate);
+    }
+    const { rows } = await pgPool.query(
+      `SELECT COALESCE(SUM(amount), 0) AS total_amount, COUNT(*) AS donation_count
+       FROM donations ${where}`,
+      params
+    );
+    return {
+      total_amount: parseFloat(rows[0].total_amount),
+      donation_count: parseInt(rows[0].donation_count),
+    };
+  },
+
+  async getRangeTrend({ startDate, endDate, bucket = 'month' } = {}) {
+    let where = 'WHERE 1=1';
+    const params = [];
+    let i = 1;
+    if (startDate) {
+      where += ` AND donation_date >= $${i++}`;
+      params.push(startDate);
+    }
+    if (endDate) {
+      where += ` AND donation_date <= $${i++}`;
+      params.push(endDate);
+    }
+
+    let labelExpr, keyExpr;
+    if (bucket === 'week') {
+      labelExpr = `TO_CHAR(DATE_TRUNC('week', donation_date), 'Mon DD, YYYY')`;
+      keyExpr = `TO_CHAR(DATE_TRUNC('week', donation_date), 'YYYY-MM-DD')`;
+    } else if (bucket === 'day') {
+      labelExpr = `TO_CHAR(donation_date, 'Mon DD, YYYY')`;
+      keyExpr = `TO_CHAR(donation_date, 'YYYY-MM-DD')`;
+    } else {
+      labelExpr = `TO_CHAR(donation_date, 'Mon YYYY')`;
+      keyExpr = `TO_CHAR(donation_date, 'YYYY-MM')`;
+    }
+
+    const { rows } = await pgPool.query(
+      `SELECT ${labelExpr} AS label, ${keyExpr} AS bucket_key,
+              COALESCE(SUM(amount), 0) AS amount
+       FROM donations ${where}
+       GROUP BY bucket_key, label
+       ORDER BY bucket_key`,
+      params
+    );
     return rows;
   },
 };
