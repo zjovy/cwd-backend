@@ -11,7 +11,7 @@ Our backend runs on a single EC2 instance with a managed RDS database:
 - **Nginx** — reverse proxy, forwards traffic to Node.js on port 5050
 - **PM2** — process manager, keeps the app running and handles restarts
 
-The EC2 instance sits in a public subnet and is accessible via Elastic IP `32.194.5.150`. The RDS instance is in a private subnet (not publicly accessible). There is no domain configured yet — we access everything via the Elastic IP.
+The EC2 instance sits in a public subnet and is accessible via Elastic IP `32.194.5.150` (domain: `api.cwmarketfoundation.org`). The RDS instance is in a private subnet (not publicly accessible). The frontend is hosted on Firebase Hosting at `app.cwmarketfoundation.org`.
 
 **Key identifiers:**
 
@@ -194,16 +194,35 @@ Estimated ~$27/mo (or ~$4/mo if we are still in the AWS free tier).
 
 **Secrets fetch fails:** Check the EC2 IAM role has `secretsmanager:GetSecretValue` permissions. Verify you are targeting `us-east-1`.
 
-## 7. Adding a Domain Later
+## 7. Domain & SSL Setup
 
-1. Get a domain (or use an existing Squarespace domain)
-2. Add an A record: Host = `api`, Data = `32.194.5.150`
-3. Update Nginx config on EC2 — change `server_name _` to `server_name api.yourdomain.com`
-4. Run certbot for HTTPS:
+**Domain:** `cwmarketfoundation.org` (managed in Squarespace DNS)
+
+**DNS Records:**
+
+| Type | Host | Value |
+|------|------|-------|
+| A | api | 32.194.5.150 |
+| CNAME | app | cwd-donor-management.web.app |
+
+**Backend (api.cwmarketfoundation.org):**
+
+1. SSH into EC2
+2. Update Nginx config — change `server_name _` to `server_name api.cwmarketfoundation.org`:
    ```
-   sudo certbot --nginx -d api.yourdomain.com
+   sudo nano /etc/nginx/conf.d/cwd-backend.conf
    ```
-5. Update `FRONTEND_URL`/`API_URL` in `.env` and restart:
+3. Run Certbot for HTTPS:
    ```
-   pm2 restart cwd-backend
+   sudo certbot --nginx -d api.cwmarketfoundation.org
    ```
+4. Refresh secrets and restart:
+   ```
+   ./scripts/fetch-secrets.sh && pm2 restart cwd-backend
+   ```
+
+**Frontend (app.cwmarketfoundation.org):**
+
+Hosted on Firebase Hosting (project: `cwd-donor-management`). Custom domain is configured in Firebase Console → Hosting → Custom domains.
+
+Frontend deploys automatically via GitHub Actions on push to `main` in the frontend repo.
