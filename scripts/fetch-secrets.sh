@@ -19,8 +19,8 @@ DATABASE_CLIENT=mysql
 EOF
 
 # These should be set per-deployment (update before first deploy)
-echo "FRONTEND_URL=${FRONTEND_URL:-https://yourapp.com}" >> "$ENV_FILE"
-echo "API_URL=${API_URL:-https://api.yourapp.com}" >> "$ENV_FILE"
+echo "FRONTEND_URL=${FRONTEND_URL:-https://app.cwmarketfoundation.org}" >> "$ENV_FILE"
+echo "API_URL=${API_URL:-https://api.cwmarketfoundation.org}" >> "$ENV_FILE"
 
 # DB credentials from Secrets Manager
 DB_SECRET=$(aws secretsmanager get-secret-value \
