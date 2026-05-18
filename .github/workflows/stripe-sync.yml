@@ -1,0 +1,22 @@
+name: Stripe Sync
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Stripe sync
+        run: |
+          response=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST "${{ secrets.BACKEND_URL }}/sync/stripe" \
+            -H "Authorization: Bearer ${{ secrets.SYNC_API_KEY }}" \
+            -H "Content-Type: application/json")
+          cat /tmp/response.json
+          if [ "$response" != "200" ]; then
+            echo "Sync failed with HTTP status $response"
+            exit 1
+          fi
