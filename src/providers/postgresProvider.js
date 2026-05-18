@@ -168,9 +168,9 @@ export default {
 
   async getMaxStripeCreatedAt() {
     const { rows } = await pgPool.query(
-      'SELECT MAX(stripe_created_at) AS cursor FROM donations WHERE stripe_payment_intent_id IS NOT NULL'
+      'SELECT MAX(stripe_created_at) AS max_created FROM donations WHERE stripe_payment_intent_id IS NOT NULL'
     );
-    return rows[0].cursor ?? null;
+    return rows[0].max_created ?? null;
   },
 
   async createStripeDonation({
