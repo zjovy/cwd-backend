@@ -14,4 +14,8 @@ router.get('/trend', dashboardController.getDonationTrend);
 
 router.get('/last6months', dashboardController.getLast6MonthsDonations);
 
+router.get('/range-summary', dashboardController.getRangeSummary);
+
+router.get('/range-trend', dashboardController.getRangeTrend);
+
 export default router;
