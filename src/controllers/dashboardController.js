@@ -47,8 +47,8 @@ const dashboardController = {
 
   async getRangeTrend(req, res) {
     const { startDate, endDate, bucket = 'month' } = req.query;
-    if (!['month', 'week', 'day'].includes(bucket))
-      return res.status(400).json({ error: 'bucket must be month, week, or day' });
+    if (!['month', 'week', 'day', 'year'].includes(bucket))
+      return res.status(400).json({ error: 'bucket must be month, week, day, or year' });
     const dateError = validateDateRange(startDate, endDate);
     if (dateError) return res.status(400).json({ error: dateError });
     try {

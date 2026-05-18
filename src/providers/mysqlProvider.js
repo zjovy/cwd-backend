@@ -396,6 +396,9 @@ export default {
     } else if (bucket === 'day') {
       labelExpr = `DATE_FORMAT(donation_date, '%b %d, %Y')`;
       keyExpr = `DATE_FORMAT(donation_date, '%Y-%m-%d')`;
+    } else if (bucket === 'year') {
+      labelExpr = `DATE_FORMAT(donation_date, '%Y')`;
+      keyExpr = `DATE_FORMAT(donation_date, '%Y')`;
     } else {
       labelExpr = `DATE_FORMAT(donation_date, '%b %Y')`;
       keyExpr = `DATE_FORMAT(donation_date, '%Y-%m')`;

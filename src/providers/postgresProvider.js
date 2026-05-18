@@ -431,6 +431,9 @@ export default {
     } else if (bucket === 'day') {
       labelExpr = `TO_CHAR(donation_date, 'Mon DD, YYYY')`;
       keyExpr = `TO_CHAR(donation_date, 'YYYY-MM-DD')`;
+    } else if (bucket === 'year') {
+      labelExpr = `TO_CHAR(donation_date, 'YYYY')`;
+      keyExpr = `TO_CHAR(donation_date, 'YYYY')`;
     } else {
       labelExpr = `TO_CHAR(donation_date, 'Mon YYYY')`;
       keyExpr = `TO_CHAR(donation_date, 'YYYY-MM')`;
