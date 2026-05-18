@@ -8,7 +8,11 @@ function extractDonorFields(pi) {
   const email =
     pi.customer?.email ?? pi.receipt_email ?? pi.metadata?.email_address ?? null;
 
-  const rawName = pi.customer?.name ?? pi.metadata?.name ?? '';
+  const rawName =
+    pi.customer?.name ??
+    pi.latest_charge?.billing_details?.name ??
+    pi.metadata?.name ??
+    '';
   const spaceIdx = rawName.indexOf(' ');
   const first_name = spaceIdx === -1 ? rawName : rawName.slice(0, spaceIdx);
   const last_name = spaceIdx === -1 ? '' : rawName.slice(spaceIdx + 1);
