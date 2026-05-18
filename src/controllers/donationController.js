@@ -94,6 +94,12 @@ const donationController = {
       if (!donation)
         return res.status(404).json({ error: 'Donation not found' });
 
+      if (!donation.email) {
+        return res
+          .status(422)
+          .json({ error: 'Donor has no email address on file.' });
+      }
+
       const body = String(req.body?.body || buildReceiptMessage(donation));
       const pdf = await buildReceiptPdf({ donation, message: body });
       const email = await emailService.sendDonationReceipt({
@@ -112,7 +118,10 @@ const donationController = {
         receipt_status: 'sent',
       });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('[send-receipt] error:', err);
+      res
+        .status(500)
+        .json({ error: 'Failed to send receipt. Please try again.' });
     }
   },
 
