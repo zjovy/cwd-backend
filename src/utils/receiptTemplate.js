@@ -10,16 +10,13 @@ export function formatDonationAmount(amount) {
 
 export function buildReceiptMessage(donation) {
   return [
-    `Dear ${donation.first_name} ${donation.last_name},`,
+    `Dear ${donation.first_name},`,
     '',
-    `The C&W Market Foundation has received your generous gift of $${formatDonationAmount(
-      donation.amount
-    )} to support our annual efforts. Your contribution makes a meaningful difference in the work we do for our community.`,
+    `The C&W Market Foundation has received your generous gift of $${formatDonationAmount(donation.amount)} to support our annual efforts.`,
     '',
-    'Thank you for your generosity and continued support.',
+    'Thanks to the donations from our Annual Fundraiser, we were able to provide groceries every two weeks to over 250 families and seniors. These grocery packages included options such as turkeys, hams, or Cornish hens for both Thanksgiving and Christmas holidays.',
     '',
-    'Sincerely,',
-    'The C&W Market Foundation',
+    'All of us at the C&W Market Foundation appreciate our donors. We are very grateful for your contribution!',
   ].join('\n');
 }
 
