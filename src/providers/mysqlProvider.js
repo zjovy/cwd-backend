@@ -368,4 +368,19 @@ export default {
     `);
     return rows;
   },
+
+  async setLastSync(key) {
+    await pool.execute(
+      'INSERT INTO sync_meta (`key`, synced_at) VALUES (?, NOW()) ON DUPLICATE KEY UPDATE synced_at = VALUES(synced_at)',
+      [key]
+    );
+  },
+
+  async getLastSync(key) {
+    const [rows] = await pool.execute(
+      'SELECT synced_at FROM sync_meta WHERE `key` = ?',
+      [key]
+    );
+    return rows[0]?.synced_at ?? null;
+  },
 };
