@@ -37,7 +37,7 @@ const stripeSyncService = {
       limit: 100,
       expand: ['data.customer', 'data.latest_charge'],
     };
-    if (cursor) listParams['created[gt]'] = cursor;
+    if (cursor) listParams.created = { gt: cursor };
 
     let hasMore = true;
     let startingAfter = null;
