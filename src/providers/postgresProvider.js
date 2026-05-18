@@ -166,6 +166,31 @@ export default {
     }
   },
 
+  async getMaxStripeCreatedAt() {
+    const { rows } = await pgPool.query(
+      'SELECT MAX(stripe_created_at) AS cursor FROM donations WHERE stripe_payment_intent_id IS NOT NULL'
+    );
+    return rows[0].cursor ?? null;
+  },
+
+  async createStripeDonation({
+    donor_id,
+    amount,
+    donation_date,
+    description,
+    stripe_payment_intent_id,
+    stripe_created_at,
+  }) {
+    const { rowCount } = await pgPool.query(
+      `INSERT INTO donations
+         (donor_id, amount, donation_date, description, stripe_payment_intent_id, stripe_created_at, receipt_status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'sent')
+       ON CONFLICT (stripe_payment_intent_id) DO NOTHING`,
+      [donor_id, amount, donation_date, description, stripe_payment_intent_id, stripe_created_at]
+    );
+    return { affectedRows: rowCount };
+  },
+
   async findOrCreateDonorByEmail({
     first_name,
     last_name,
