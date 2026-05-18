@@ -10,6 +10,8 @@ const donationRepository = {
   createDonation: (data) => provider.createDonation(data),
   updateDonation: (id, body) => provider.updateDonation(id, body),
   deleteDonation: (id) => provider.deleteDonation(id),
+  getMaxStripeCreatedAt: () => provider.getMaxStripeCreatedAt(),
+  createStripeDonation: (data) => provider.createStripeDonation(data),
 };
 
 export default donationRepository;
