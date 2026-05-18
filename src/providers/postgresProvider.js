@@ -400,4 +400,19 @@ export default {
     `);
     return rows;
   },
+
+  async setLastSync(key) {
+    await pgPool.query(
+      'INSERT INTO sync_meta (key, synced_at) VALUES ($1, NOW()) ON CONFLICT (key) DO UPDATE SET synced_at = EXCLUDED.synced_at',
+      [key]
+    );
+  },
+
+  async getLastSync(key) {
+    const { rows } = await pgPool.query(
+      'SELECT synced_at FROM sync_meta WHERE key = $1',
+      [key]
+    );
+    return rows[0]?.synced_at ?? null;
+  },
 };
