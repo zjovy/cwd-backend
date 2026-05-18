@@ -151,6 +151,30 @@ export default {
     }
   },
 
+  async getMaxStripeCreatedAt() {
+    const [rows] = await pool.execute(
+      'SELECT MAX(stripe_created_at) AS cursor FROM donations WHERE stripe_payment_intent_id IS NOT NULL'
+    );
+    return rows[0].cursor ?? null;
+  },
+
+  async createStripeDonation({
+    donor_id,
+    amount,
+    donation_date,
+    description,
+    stripe_payment_intent_id,
+    stripe_created_at,
+  }) {
+    const [result] = await pool.execute(
+      `INSERT IGNORE INTO donations
+         (donor_id, amount, donation_date, description, stripe_payment_intent_id, stripe_created_at, receipt_status)
+       VALUES (?, ?, ?, ?, ?, ?, 'sent')`,
+      [donor_id, amount, donation_date, description, stripe_payment_intent_id, stripe_created_at]
+    );
+    return { affectedRows: result.affectedRows };
+  },
+
   async findOrCreateDonorByEmail({
     first_name,
     last_name,
