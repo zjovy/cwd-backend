@@ -184,7 +184,7 @@ export default {
     const { rowCount } = await pgPool.query(
       `INSERT INTO donations
          (donor_id, amount, donation_date, description, stripe_payment_intent_id, stripe_created_at, receipt_status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'sent')
+       VALUES ($1, $2, $3, $4, $5, $6, 'pending')
        ON CONFLICT (stripe_payment_intent_id) DO NOTHING`,
       [donor_id, amount, donation_date, description, stripe_payment_intent_id, stripe_created_at]
     );

@@ -169,7 +169,7 @@ export default {
     const [result] = await pool.execute(
       `INSERT IGNORE INTO donations
          (donor_id, amount, donation_date, description, stripe_payment_intent_id, stripe_created_at, receipt_status)
-       VALUES (?, ?, ?, ?, ?, ?, 'sent')`,
+       VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
       [donor_id, amount, donation_date, description, stripe_payment_intent_id, stripe_created_at]
     );
     return { affectedRows: result.affectedRows };
