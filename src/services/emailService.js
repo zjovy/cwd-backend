@@ -2,7 +2,7 @@ import { Resend } from 'resend';
 
 const DEFAULT_CC_EMAIL = 'info@cwmarketfoundation.org';
 const DEFAULT_FROM_EMAIL =
-  'C&W Market Foundation <info@cwmarketfoundation.org>';
+  'C&W Market Foundation <noreply@noreply.cwmarketfoundation.org>';
 
 function getResendClient() {
   if (!process.env.RESEND_API_KEY) {
