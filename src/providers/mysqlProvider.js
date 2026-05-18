@@ -40,6 +40,8 @@ export default {
     status,
     minAmount,
     maxAmount,
+    startDate,
+    endDate,
     page = 1,
     limit = 25,
   }) {
@@ -66,6 +68,14 @@ export default {
     if (maxAmount) {
       where += ` AND d.amount <= ?`;
       params.push(maxAmount);
+    }
+    if (startDate) {
+      where += ` AND d.donation_date >= ?`;
+      params.push(startDate);
+    }
+    if (endDate) {
+      where += ` AND d.donation_date <= ?`;
+      params.push(endDate);
     }
 
     const [[countRows], [rows]] = await Promise.all([
@@ -342,6 +352,66 @@ export default {
       GROUP BY month_key, month
       ORDER BY month_key
     `);
+    return rows;
+  },
+
+  async getRangeSummary({ startDate, endDate } = {}) {
+    let where = 'WHERE 1=1';
+    const params = [];
+    if (startDate) {
+      where += ' AND donation_date >= ?';
+      params.push(startDate);
+    }
+    if (endDate) {
+      where += ' AND donation_date <= ?';
+      params.push(endDate);
+    }
+    const [rows] = await pool.execute(
+      `SELECT COALESCE(SUM(amount), 0) AS total_amount, COUNT(*) AS donation_count
+       FROM donations ${where}`,
+      params
+    );
+    return {
+      total_amount: parseFloat(rows[0].total_amount),
+      donation_count: parseInt(rows[0].donation_count),
+    };
+  },
+
+  async getRangeTrend({ startDate, endDate, bucket = 'month' } = {}) {
+    let where = 'WHERE 1=1';
+    const params = [];
+    if (startDate) {
+      where += ' AND donation_date >= ?';
+      params.push(startDate);
+    }
+    if (endDate) {
+      where += ' AND donation_date <= ?';
+      params.push(endDate);
+    }
+
+    let labelExpr, keyExpr;
+    if (bucket === 'week') {
+      labelExpr = `DATE_FORMAT(DATE_SUB(donation_date, INTERVAL WEEKDAY(donation_date) DAY), '%b %d, %Y')`;
+      keyExpr = `DATE_FORMAT(DATE_SUB(donation_date, INTERVAL WEEKDAY(donation_date) DAY), '%Y-%m-%d')`;
+    } else if (bucket === 'day') {
+      labelExpr = `DATE_FORMAT(donation_date, '%b %d, %Y')`;
+      keyExpr = `DATE_FORMAT(donation_date, '%Y-%m-%d')`;
+    } else if (bucket === 'year') {
+      labelExpr = `DATE_FORMAT(donation_date, '%Y')`;
+      keyExpr = `DATE_FORMAT(donation_date, '%Y')`;
+    } else {
+      labelExpr = `DATE_FORMAT(donation_date, '%b %Y')`;
+      keyExpr = `DATE_FORMAT(donation_date, '%Y-%m')`;
+    }
+
+    const [rows] = await pool.execute(
+      `SELECT ${labelExpr} AS label, ${keyExpr} AS bucket_key,
+              COALESCE(SUM(amount), 0) AS amount
+       FROM donations ${where}
+       GROUP BY bucket_key, label
+       ORDER BY bucket_key`,
+      params
+    );
     return rows;
   },
 };
