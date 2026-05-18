@@ -1,4 +1,5 @@
 import express from 'express';
+
 import syncController from '../controllers/syncController.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 import syncAuthMiddleware from '../middleware/syncAuthMiddleware.js';
