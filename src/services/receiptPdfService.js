@@ -63,7 +63,7 @@ export function buildReceiptPdf({ donation, message }) {
 
     // --- Logo (top left, smaller, above everything) ---
     const logoHeight = fs.existsSync(logoPath)
-      ? doc.image(logoPath, MARGIN, MARGIN, { width: 160 }).y
+      ? doc.image(logoPath, MARGIN, MARGIN, { width: 210 }).y
       : MARGIN;
 
     // --- Address block (below logo, right-aligned, 12pt) ---
