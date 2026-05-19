@@ -35,6 +35,11 @@ export function buildReceiptPdf({ donation, message }) {
     doc.on('error', reject);
     doc.on('end', () => resolve(Buffer.concat(chunks)));
 
+    // --- Logo (top left) ---
+    if (fs.existsSync(logoPath)) {
+      doc.image(logoPath, MARGIN, MARGIN, { width: 160 });
+    }
+
     // --- Address block (top right) ---
     doc
       .font('Helvetica')
@@ -55,7 +60,7 @@ export function buildReceiptPdf({ donation, message }) {
       .font('Helvetica')
       .fontSize(11)
       .fillColor('#111827')
-      .text(ordinalDate(donation.donation_date), MARGIN, MARGIN + 70);
+      .text(ordinalDate(donation.donation_date), MARGIN, MARGIN + 130);
 
     // --- Donor name ---
     doc
@@ -65,7 +70,7 @@ export function buildReceiptPdf({ donation, message }) {
       .text(
         `${donation.first_name} ${donation.last_name}`,
         MARGIN,
-        MARGIN + 120
+        MARGIN + 180
       );
 
     // --- Body (editable message: salutation + paragraphs) ---
@@ -73,7 +78,7 @@ export function buildReceiptPdf({ donation, message }) {
       .font('Helvetica')
       .fontSize(11)
       .fillColor('#111827')
-      .text(message, MARGIN, MARGIN + 170, {
+      .text(message, MARGIN, MARGIN + 230, {
         align: 'left',
         lineGap: 4,
         paragraphGap: 12,
