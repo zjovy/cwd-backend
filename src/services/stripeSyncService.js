@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import donationRepository from '../repositories/donationRepository.js';
 import donorRepository from '../repositories/donorRepository.js';
+import syncMetaRepository from '../repositories/syncMetaRepository.js';
 
 const stripe = new Stripe(process.env.STRIPE_API_KEY);
 
@@ -95,6 +96,11 @@ const stripeSyncService = {
       }
     }
 
+    try {
+      await syncMetaRepository.setLastSync('stripe_last_sync');
+    } catch (err) {
+      console.error('Failed to record stripe_last_sync:', err);
+    }
     return { inserted: inserted.length, skipped: skipped.length, errors };
   },
 };
