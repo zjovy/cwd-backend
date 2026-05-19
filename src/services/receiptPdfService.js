@@ -38,7 +38,10 @@ function registerFonts(doc) {
   if (fs.existsSync(regular)) {
     doc.registerFont('OpenSans', regular);
     doc.registerFont('OpenSans-Bold', path.join(fontsDir, 'OpenSans-bold.ttf'));
-    doc.registerFont('OpenSans-Italic', path.join(fontsDir, 'OpenSans-italic.ttf'));
+    doc.registerFont(
+      'OpenSans-Italic',
+      path.join(fontsDir, 'OpenSans-italic.ttf')
+    );
     return 'OpenSans';
   }
   // Fallback to built-in Helvetica
@@ -55,19 +58,21 @@ export function buildReceiptPdf({ donation, message }) {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
 
     const font = registerFonts(doc);
-    const fontItalic = font === 'OpenSans' ? 'OpenSans-Italic' : 'Helvetica-Oblique';
+    const fontItalic =
+      font === 'OpenSans' ? 'OpenSans-Italic' : 'Helvetica-Oblique';
 
-    // --- Logo (top left, ~4.22" wide matching docx) ---
-    if (fs.existsSync(logoPath)) {
-      doc.image(logoPath, MARGIN, MARGIN, { width: 304 });
-    }
+    // --- Logo (top left, smaller, above everything) ---
+    const logoHeight = fs.existsSync(logoPath)
+      ? doc.image(logoPath, MARGIN, MARGIN, { width: 160 }).y
+      : MARGIN;
 
-    // --- Address block (top right, right-aligned, 12pt matching docx) ---
+    // --- Address block (below logo, right-aligned, 12pt) ---
+    const addrY = MARGIN + 55;
     doc
       .font(font)
       .fontSize(12)
       .fillColor('#000000')
-      .text('1901 Church Street', MARGIN, MARGIN, {
+      .text('1901 Church Street', MARGIN, addrY, {
         align: 'right',
         width: CONTENT_WIDTH,
       })
@@ -77,8 +82,7 @@ export function buildReceiptPdf({ donation, message }) {
         width: CONTENT_WIDTH,
       });
 
-    // Logo is ~66pt tall + margin = start body after logo
-    const bodyStart = MARGIN + 80;
+    const bodyStart = Math.max(logoHeight, addrY + 50);
 
     // --- Spacer ---
     let y = bodyStart;
@@ -112,15 +116,11 @@ export function buildReceiptPdf({ donation, message }) {
       if (line.trim() === '') {
         y += PARA_GAP * 2;
       } else {
-        doc
-          .font(font)
-          .fontSize(11)
-          .fillColor('#000000')
-          .text(line, MARGIN, y, {
-            align: 'left',
-            lineGap: 2.3, // ~1.15x line spacing at 11pt
-            width: CONTENT_WIDTH,
-          });
+        doc.font(font).fontSize(11).fillColor('#000000').text(line, MARGIN, y, {
+          align: 'left',
+          lineGap: 2.3, // ~1.15x line spacing at 11pt
+          width: CONTENT_WIDTH,
+        });
         y = doc.y + PARA_GAP;
       }
     }
