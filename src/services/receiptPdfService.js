@@ -105,14 +105,20 @@ export function buildReceiptPdf({ donation, message }) {
     // --- Body message (11pt, left, 1.15x line spacing) ---
     // Strip any trailing closing block (Sincerely / With gratitude / signatures)
     // since the PDF renders its own formal closing below.
-    const CLOSING_PATTERN =
-      /^(sincerely|with gratitude|the c&w market foundation)/i;
+    // Strip trailing closing block — match only short closing salutations,
+    // not body sentences that happen to start with the same words.
+    const CLOSING_PATTERN = /^(sincerely|with gratitude),?$/i;
     const allLines = message.split('\n');
-    const lastClosingIdx = allLines.findLastIndex((l) =>
+    const firstClosingIdx = allLines.findIndex((l) =>
       CLOSING_PATTERN.test(l.trim())
     );
-    const lines =
-      lastClosingIdx !== -1 ? allLines.slice(0, lastClosingIdx) : allLines;
+    const bodyLines =
+      firstClosingIdx !== -1 ? allLines.slice(0, firstClosingIdx) : allLines;
+    // Trim trailing blank lines
+    while (bodyLines.length > 0 && bodyLines.at(-1).trim() === '') {
+      bodyLines.pop();
+    }
+    const lines = bodyLines;
     for (const line of lines) {
       if (line.trim() === '') {
         y += PARA_GAP * 2;
