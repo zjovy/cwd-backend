@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS donors (
   id         INT AUTO_INCREMENT PRIMARY KEY,
   first_name VARCHAR(100) NOT NULL,
   last_name  VARCHAR(100) NOT NULL,
-  email      VARCHAR(255) NOT NULL,
+  email      VARCHAR(255) NULL,
   address    VARCHAR(255),
   phone      VARCHAR(20),
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -37,4 +37,9 @@ CREATE TABLE IF NOT EXISTS donations (
   created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   CONSTRAINT fk_donation_donor FOREIGN KEY (donor_id) REFERENCES donors(id) ON DELETE RESTRICT
+);
+
+CREATE TABLE IF NOT EXISTS sync_meta (
+  `key`     VARCHAR(64) NOT NULL PRIMARY KEY,
+  synced_at DATETIME    NOT NULL
 );
