@@ -14,5 +14,6 @@ router.post(
   requireApprovalMiddleware,
   syncController.syncStripeManual
 );
+router.get('/stripe/last', authMiddleware, syncController.getLastSync);
 
 export default router;
