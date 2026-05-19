@@ -26,7 +26,6 @@ const emailService = {
           filename: 'donation-receipt.pdf',
         },
       ],
-      cc,
       from,
       html,
       subject,
