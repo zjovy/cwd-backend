@@ -14,9 +14,15 @@ export function buildReceiptMessage(donation) {
     '',
     `The C&W Market Foundation has received your generous gift of $${formatDonationAmount(donation.amount)} to support our annual efforts.`,
     '',
-    'Thanks to the donations from our Annual Fundraiser, we were able to provide groceries every two weeks to over 250 families and seniors. These grocery packages included options such as turkeys, hams, or Cornish hens for both Thanksgiving and Christmas holidays.',
-    '',
     'All of us at the C&W Market Foundation appreciate our donors. We are very grateful for your contribution!',
+    '',
+    'With gratitude,',
+    '',
+    'Clarence and Wendy Weaver',
+    'Co-Founders',
+    '',
+    'Sydni Craig',
+    'Board President',
   ].join('\n');
 }
 
