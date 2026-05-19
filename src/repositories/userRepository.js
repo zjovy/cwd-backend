@@ -1,8 +1,6 @@
-import { databaseClient } from '../config/database.js';
 import mysqlProvider from '../providers/mysqlProvider.js';
-import postgresProvider from '../providers/postgresProvider.js';
 
-const provider = databaseClient === 'mysql' ? mysqlProvider : postgresProvider;
+const provider = mysqlProvider;
 
 const userRepository = {
   createUser: (userData) => provider.createUser(userData),
