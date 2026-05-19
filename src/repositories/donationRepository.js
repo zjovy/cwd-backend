@@ -11,6 +11,7 @@ const donationRepository = {
   updateDonation: (id, body) => provider.updateDonation(id, body),
   deleteDonation: (id) => provider.deleteDonation(id),
   getMaxStripeCreatedAt: () => provider.getMaxStripeCreatedAt(),
+  existsByStripeId: (id) => provider.existsByStripeId(id),
   createStripeDonation: (data) => provider.createStripeDonation(data),
 };
 

@@ -64,18 +64,33 @@ const stripeSyncService = {
       try {
         const { email, first_name, last_name, phone, address } = extractDonorFields(pi);
 
-        if (!email) {
+        let donor;
+        if (email) {
+          donor = await donorRepository.findOrCreateByEmail({
+            first_name,
+            last_name,
+            email,
+            phone,
+            address,
+          });
+        } else if (first_name || last_name) {
+          const alreadyExists = await donationRepository.existsByStripeId(pi.id);
+          if (alreadyExists) {
+            skipped.push(pi.id);
+            continue;
+          }
+          const created = await donorRepository.createDonor({
+            first_name,
+            last_name,
+            email: null,
+            phone,
+            address,
+          });
+          donor = { id: created.insertId };
+        } else {
           skipped.push(pi.id);
           continue;
         }
-
-        const donor = await donorRepository.findOrCreateByEmail({
-          first_name,
-          last_name,
-          email,
-          phone,
-          address,
-        });
 
         const result = await donationRepository.createStripeDonation({
           donor_id: donor.id,

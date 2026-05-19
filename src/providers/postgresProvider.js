@@ -173,6 +173,14 @@ export default {
     return rows[0].max_created ?? null;
   },
 
+  async existsByStripeId(stripePaymentIntentId) {
+    const { rows } = await pgPool.query(
+      'SELECT COUNT(*) AS cnt FROM donations WHERE stripe_payment_intent_id = $1',
+      [stripePaymentIntentId]
+    );
+    return parseInt(rows[0].cnt) > 0;
+  },
+
   async createStripeDonation({
     donor_id,
     amount,
