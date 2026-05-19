@@ -7,12 +7,19 @@ import { formatDonationAmount } from '../utils/receiptTemplate.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const logoPath = path.resolve(__dirname, '../assets/logo.png');
 
+const ASSETS = path.resolve(__dirname, '../assets');
+const logoPath = path.join(ASSETS, 'logo.png');
+const fontsDir = path.join(ASSETS, 'fonts');
+
+// 1 inch margins matching the docx
 const MARGIN = 72;
 const PAGE_WIDTH = 612;
 const PAGE_HEIGHT = 792;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
+
+// Paragraph spacing: 240 twips = 12pt (matches docx spacing before/after)
+const PARA_GAP = 12;
 
 function ordinalDate(value) {
   if (!value) return '';
@@ -20,10 +27,22 @@ function ordinalDate(value) {
   const day = d.getDate();
   const month = d.toLocaleDateString('en-US', { month: 'long' });
   const year = d.getFullYear();
-  const s = ['th', 'st', 'nd', 'rd'];
   const v = day % 100;
-  const suffix = s[(v - 20) % 10] || s[v] || s[0];
-  return `${month} ${day}${suffix}, ${year}`;
+  const suffix = ['th', 'st', 'nd', 'rd'];
+  const ord = suffix[(v - 20) % 10] || suffix[v] || suffix[0];
+  return `${month} ${day}${ord}, ${year}`;
+}
+
+function registerFonts(doc) {
+  const regular = path.join(fontsDir, 'OpenSans-regular.ttf');
+  if (fs.existsSync(regular)) {
+    doc.registerFont('OpenSans', regular);
+    doc.registerFont('OpenSans-Bold', path.join(fontsDir, 'OpenSans-bold.ttf'));
+    doc.registerFont('OpenSans-Italic', path.join(fontsDir, 'OpenSans-italic.ttf'));
+    return 'OpenSans';
+  }
+  // Fallback to built-in Helvetica
+  return 'Helvetica';
 }
 
 export function buildReceiptPdf({ donation, message }) {
@@ -35,16 +54,19 @@ export function buildReceiptPdf({ donation, message }) {
     doc.on('error', reject);
     doc.on('end', () => resolve(Buffer.concat(chunks)));
 
-    // --- Logo (top left) ---
+    const font = registerFonts(doc);
+    const fontItalic = font === 'OpenSans' ? 'OpenSans-Italic' : 'Helvetica-Oblique';
+
+    // --- Logo (top left, ~4.22" wide matching docx) ---
     if (fs.existsSync(logoPath)) {
-      doc.image(logoPath, MARGIN, MARGIN, { width: 160 });
+      doc.image(logoPath, MARGIN, MARGIN, { width: 304 });
     }
 
-    // --- Address block (top right) ---
+    // --- Address block (top right, right-aligned, 12pt matching docx) ---
     doc
-      .font('Helvetica')
-      .fontSize(11)
-      .fillColor('#111827')
+      .font(font)
+      .fontSize(12)
+      .fillColor('#000000')
       .text('1901 Church Street', MARGIN, MARGIN, {
         align: 'right',
         width: CONTENT_WIDTH,
@@ -55,56 +77,81 @@ export function buildReceiptPdf({ donation, message }) {
         width: CONTENT_WIDTH,
       });
 
-    // --- Date (left) ---
-    doc
-      .font('Helvetica')
-      .fontSize(11)
-      .fillColor('#111827')
-      .text(ordinalDate(donation.donation_date), MARGIN, MARGIN + 130);
+    // Logo is ~66pt tall + margin = start body after logo
+    const bodyStart = MARGIN + 80;
 
-    // --- Donor name ---
-    doc
-      .font('Helvetica')
-      .fontSize(14)
-      .fillColor('#111827')
-      .text(
-        `${donation.first_name} ${donation.last_name}`,
-        MARGIN,
-        MARGIN + 180
-      );
+    // --- Spacer ---
+    let y = bodyStart;
 
-    // --- Body (editable message: salutation + paragraphs) ---
+    // --- Date (11pt, left) ---
+    y += PARA_GAP;
     doc
-      .font('Helvetica')
+      .font(font)
       .fontSize(11)
-      .fillColor('#111827')
-      .text(message, MARGIN, MARGIN + 230, {
-        align: 'left',
-        lineGap: 4,
-        paragraphGap: 12,
-        width: CONTENT_WIDTH,
-      });
+      .fillColor('#000000')
+      .text(ordinalDate(donation.donation_date), MARGIN, y);
+    y = doc.y + PARA_GAP;
+
+    // --- Spacer ---
+    y += PARA_GAP;
+
+    // --- Donor name (12pt, left) ---
+    doc
+      .font(font)
+      .fontSize(12)
+      .fillColor('#000000')
+      .text(`${donation.first_name} ${donation.last_name}`, MARGIN, y);
+    y = doc.y + PARA_GAP;
+
+    // --- Empty paragraph ---
+    y += PARA_GAP;
+
+    // --- Body message (11pt, left, 1.15x line spacing) ---
+    const lines = message.split('\n');
+    for (const line of lines) {
+      if (line.trim() === '') {
+        y += PARA_GAP * 2;
+      } else {
+        doc
+          .font(font)
+          .fontSize(11)
+          .fillColor('#000000')
+          .text(line, MARGIN, y, {
+            align: 'left',
+            lineGap: 2.3, // ~1.15x line spacing at 11pt
+            width: CONTENT_WIDTH,
+          });
+        y = doc.y + PARA_GAP;
+      }
+    }
+
+    // --- Empty paragraph before closing ---
+    y += PARA_GAP;
 
     // --- Closing ---
     doc
-      .font('Helvetica')
+      .font(font)
       .fontSize(11)
-      .fillColor('#111827')
-      .text('With gratitude,', MARGIN, doc.y + 28);
+      .fillColor('#000000')
+      .text('With gratitude,', MARGIN, y);
+    y = doc.y + PARA_GAP;
 
-    doc.moveDown(1.5);
-    doc.font('Helvetica').fontSize(11).text('Clarence and Wendy Weaver');
-    doc.font('Helvetica-Oblique').fontSize(11).text('Co-Founders');
+    doc.font(font).fontSize(11).text('Clarence and Wendy Weaver', MARGIN, y);
+    y = doc.y + 2;
 
-    doc.moveDown(1);
-    doc.font('Helvetica').fontSize(11).text('Sydni Craig');
-    doc.font('Helvetica-Oblique').fontSize(11).text('Board President');
+    doc.font(fontItalic).fontSize(10).text('Co-Founders', MARGIN, y);
+    y = doc.y + PARA_GAP * 2;
 
-    // --- Footer ---
+    doc.font(font).fontSize(11).text('Sydni Craig', MARGIN, y);
+    y = doc.y + 2;
+
+    doc.font(fontItalic).fontSize(10).text('Board President', MARGIN, y);
+
+    // --- Footer (Calibri → Helvetica fallback, 9pt italic, left-aligned) ---
     doc
-      .font('Helvetica-Oblique')
+      .font(fontItalic)
       .fontSize(9)
-      .fillColor('#6b7280')
+      .fillColor('#000000')
       .text(
         'The C&W Market Foundation is a 501(c)(3), tax-exempt organization ' +
           'Federal EIN #82-2114121. We acknowledge that no goods or services ' +
@@ -112,7 +159,7 @@ export function buildReceiptPdf({ donation, message }) {
           'income tax purposes.',
         MARGIN,
         PAGE_HEIGHT - MARGIN - 36,
-        { align: 'center', width: CONTENT_WIDTH }
+        { align: 'left', width: CONTENT_WIDTH }
       );
 
     doc.end();
