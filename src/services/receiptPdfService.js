@@ -99,19 +99,20 @@ export function buildReceiptPdf({ donation, message }) {
     // --- Spacer ---
     y += PARA_GAP;
 
-    // --- Donor name (12pt, left) ---
-    doc
-      .font(font)
-      .fontSize(12)
-      .fillColor('#000000')
-      .text(`${donation.first_name} ${donation.last_name}`, MARGIN, y);
-    y = doc.y + PARA_GAP;
-
     // --- Empty paragraph ---
     y += PARA_GAP;
 
     // --- Body message (11pt, left, 1.15x line spacing) ---
-    const lines = message.split('\n');
+    // Strip any trailing closing block (Sincerely / With gratitude / signatures)
+    // since the PDF renders its own formal closing below.
+    const CLOSING_PATTERN =
+      /^(sincerely|with gratitude|the c&w market foundation)/i;
+    const allLines = message.split('\n');
+    const lastClosingIdx = allLines.findLastIndex((l) =>
+      CLOSING_PATTERN.test(l.trim())
+    );
+    const lines =
+      lastClosingIdx !== -1 ? allLines.slice(0, lastClosingIdx) : allLines;
     for (const line of lines) {
       if (line.trim() === '') {
         y += PARA_GAP * 2;
