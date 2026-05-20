@@ -2,17 +2,26 @@ import donationRepository from '../repositories/donationRepository.js';
 import donorRepository from '../repositories/donorRepository.js';
 import emailService from '../services/emailService.js';
 import { buildReceiptPdf } from '../services/receiptPdfService.js';
+import { validateDateRange } from '../utils/dateValidation.js';
 import {
   RECEIPT_SUBJECT,
   buildReceiptMessage,
   messageToHtml,
 } from '../utils/receiptTemplate.js';
-import { validateDateRange } from '../utils/dateValidation.js';
 
 const donationController = {
   async getDonations(req, res) {
     try {
-      const { search, status, minAmount, maxAmount, startDate, endDate, page, limit } = req.query;
+      const {
+        search,
+        status,
+        minAmount,
+        maxAmount,
+        startDate,
+        endDate,
+        page,
+        limit,
+      } = req.query;
       const dateError = validateDateRange(startDate, endDate);
       if (dateError) return res.status(400).json({ error: dateError });
       const { rows, total } = await donationRepository.getDonations({
@@ -130,6 +139,65 @@ const donationController = {
       res
         .status(500)
         .json({ error: 'Failed to send receipt. Please try again.' });
+    }
+  },
+
+  async sendReceipts(req, res) {
+    try {
+      const { allUnsent, filters, body } = req.body || {};
+      let ids = Array.isArray(req.body?.ids) ? req.body.ids : null;
+
+      if (allUnsent) {
+        ids = await donationRepository.getUnsentIds(filters || {});
+      }
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res
+          .status(400)
+          .json({ error: 'No donations selected to send.' });
+      }
+
+      const sharedBody = typeof body === 'string' && body.trim() ? body : null;
+
+      const sent = [];
+      const failed = [];
+
+      for (const rawId of ids) {
+        const id = Number(rawId);
+        try {
+          const donation = await donationRepository.getById(id);
+          if (!donation) {
+            failed.push({ id, error: 'Not found' });
+            continue;
+          }
+          if (!donation.email) {
+            failed.push({ id, error: 'No email on file' });
+            continue;
+          }
+
+          const msg = sharedBody || buildReceiptMessage(donation);
+          const pdf = await buildReceiptPdf({ donation, message: msg });
+          await emailService.sendDonationReceipt({
+            html: messageToHtml(msg),
+            pdf,
+            subject: RECEIPT_SUBJECT,
+            text: msg,
+            to: donation.email,
+          });
+          await donationRepository.updateReceiptStatus(id, 'sent');
+          sent.push(id);
+        } catch (err) {
+          console.error(`[send-receipts] failed for id ${id}:`, err);
+          failed.push({ id, error: err.message || 'Send failed' });
+        }
+      }
+
+      res.json({ sent, failed, total: ids.length });
+    } catch (err) {
+      console.error('[send-receipts] error:', err);
+      res
+        .status(500)
+        .json({ error: 'Failed to send receipts. Please try again.' });
     }
   },
 

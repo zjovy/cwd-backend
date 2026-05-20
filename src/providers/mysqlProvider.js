@@ -109,6 +109,50 @@ export default {
     return rows[0] || null;
   },
 
+  async getUnsentIds({
+    search,
+    status,
+    minAmount,
+    maxAmount,
+    startDate,
+    endDate,
+  } = {}) {
+    let where = `WHERE COALESCE(d.receipt_status, 'pending') <> 'sent'`;
+    const params = [];
+
+    if (search) {
+      where += ` AND (dn.first_name LIKE ? OR dn.last_name LIKE ? OR dn.email LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+    if (status && status !== 'sent') {
+      where += ` AND d.receipt_status = ?`;
+      params.push(status);
+    }
+    if (minAmount) {
+      where += ` AND d.amount >= ?`;
+      params.push(minAmount);
+    }
+    if (maxAmount) {
+      where += ` AND d.amount <= ?`;
+      params.push(maxAmount);
+    }
+    if (startDate) {
+      where += ` AND d.donation_date >= ?`;
+      params.push(startDate);
+    }
+    if (endDate) {
+      where += ` AND d.donation_date <= ?`;
+      params.push(endDate);
+    }
+
+    const [rows] = await pool.execute(
+      `SELECT d.id FROM donations d JOIN donors dn ON d.donor_id = dn.id
+       ${where} ORDER BY d.donation_date DESC`,
+      params
+    );
+    return rows.map((r) => r.id);
+  },
+
   async createDonation({ donor_id, amount, donation_date, receipt_status }) {
     const [result] = await pool.execute(
       `INSERT INTO donations (donor_id, amount, donation_date, receipt_status)
@@ -196,7 +240,14 @@ export default {
       `INSERT IGNORE INTO donations
          (donor_id, amount, donation_date, description, stripe_payment_intent_id, stripe_created_at, receipt_status)
        VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
-      [donor_id, amount, donation_date, description, stripe_payment_intent_id, stripe_created_at]
+      [
+        donor_id,
+        amount,
+        donation_date,
+        description,
+        stripe_payment_intent_id,
+        stripe_created_at,
+      ]
     );
     return { affectedRows: result.affectedRows };
   },
