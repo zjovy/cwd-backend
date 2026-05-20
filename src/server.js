@@ -4,14 +4,18 @@ import dotenv from 'dotenv';
 import express from 'express';
 
 import authRoutes from './routes/authRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
 import donationRoutes from './routes/donationRoutes.js';
 import donorRoutes from './routes/donorRoutes.js';
-import dashboardRoutes from './routes/dashboardRoutes.js';
 import syncRoutes from './routes/syncRoutes.js';
 
 dotenv.config();
 
 const app = express();
+
+// Trust the first proxy (nginx on the EC2 host terminates TLS and forwards to us).
+// Required for express-rate-limit to read X-Forwarded-For correctly.
+app.set('trust proxy', 1);
 
 const corsOptions = {
   origin: (origin, callback) => {
