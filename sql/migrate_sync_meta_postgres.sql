@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS sync_meta (
+  key       VARCHAR(64) PRIMARY KEY,
+  synced_at TIMESTAMPTZ NOT NULL
+);

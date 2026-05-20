@@ -79,6 +79,9 @@ const donationController = {
   },
 
   async deleteDonation(req, res) {
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     const id = req.params.id;
     try {
       const result = await donationRepository.deleteDonation(id);
