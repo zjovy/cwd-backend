@@ -50,5 +50,19 @@ echo "RESEND_API_KEY=$RESEND_KEY" >> "$ENV_FILE"
 echo "RESEND_FROM_EMAIL=\"C&W Market Foundation <donations@noreply.cwmarketfoundation.org>\"" >> "$ENV_FILE"
 echo "RECEIPT_CC_EMAIL=info@cwmarketfoundation.org" >> "$ENV_FILE"
 
+# Stripe API key from Secrets Manager
+STRIPE_KEY=$(aws secretsmanager get-secret-value \
+  --secret-id cwd/stripe-key \
+  --region "$REGION" \
+  --query 'SecretString' --output text)
+echo "STRIPE_API_KEY=$STRIPE_KEY" >> "$ENV_FILE"
+
+# Sync API key (shared secret between this backend and the GitHub Actions stripe-sync workflow)
+SYNC_KEY=$(aws secretsmanager get-secret-value \
+  --secret-id cwd/sync-key \
+  --region "$REGION" \
+  --query 'SecretString' --output text)
+echo "SYNC_API_KEY=$SYNC_KEY" >> "$ENV_FILE"
+
 chmod 600 "$ENV_FILE"
 echo "Secrets written to $ENV_FILE"
