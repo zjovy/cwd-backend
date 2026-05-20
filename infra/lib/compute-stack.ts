@@ -54,12 +54,13 @@ export class ComputeStack extends cdk.Stack {
     // Grant read access to secrets
     dbSecret.grantRead(ec2Role);
 
-    // Also grant access to firebase secret (created manually or via console)
+    // Also grant access to firebase and resend secrets (created manually or via console)
     ec2Role.addToPolicy(
       new iam.PolicyStatement({
         actions: ['secretsmanager:GetSecretValue'],
         resources: [
           `arn:aws:secretsmanager:${this.region}:${this.account}:secret:cwd/firebase-key*`,
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:cwd/resend-key*`,
         ],
       }),
     );

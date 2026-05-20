@@ -1,5 +1,12 @@
 import donationRepository from '../repositories/donationRepository.js';
 import donorRepository from '../repositories/donorRepository.js';
+import emailService from '../services/emailService.js';
+import { buildReceiptPdf } from '../services/receiptPdfService.js';
+import {
+  RECEIPT_SUBJECT,
+  buildReceiptMessage,
+  messageToHtml,
+} from '../utils/receiptTemplate.js';
 import { validateDateRange } from '../utils/dateValidation.js';
 
 const donationController = {
@@ -53,12 +60,10 @@ const donationController = {
         'address',
       ];
       if (donorFields.some((f) => req.body[f] !== undefined)) {
-        return res
-          .status(400)
-          .json({
-            error:
-              'Donor fields cannot be updated via the donation endpoint. Use PUT /donors/:id.',
-          });
+        return res.status(400).json({
+          error:
+            'Donor fields cannot be updated via the donation endpoint. Use PUT /donors/:id.',
+        });
       }
 
       const result = await donationRepository.updateDonation(id, req.body);
@@ -97,25 +102,34 @@ const donationController = {
       if (!donation)
         return res.status(404).json({ error: 'Donation not found' });
 
-      const body =
-        req.body?.body ||
-        [
-          `Dear ${donation.first_name} ${donation.last_name},`,
-          '',
-          `The C&W Market Foundation has received your generous gift of $${parseFloat(donation.amount).toLocaleString()} to support our annual efforts. Your contribution makes a meaningful difference in the work we do for our community.`,
-          '',
-          'Thank you for your generosity and continued support.',
-          '',
-          'Sincerely,',
-          'The C&W Market Foundation',
-        ].join('\n');
+      if (!donation.email) {
+        return res
+          .status(422)
+          .json({ error: 'Donor has no email address on file.' });
+      }
 
-      // TODO: configure a real email transport (e.g. nodemailer + SMTP/SendGrid)
-      console.log(`[send-receipt] To: ${donation.email}\n${body}`);
+      const body = String(req.body?.body || buildReceiptMessage(donation));
+      const pdf = await buildReceiptPdf({ donation, message: body });
+      const email = await emailService.sendDonationReceipt({
+        html: messageToHtml(body),
+        pdf,
+        subject: RECEIPT_SUBJECT,
+        text: body,
+        to: donation.email,
+      });
 
-      res.json({ message: `Receipt sent to ${donation.email}` });
+      await donationRepository.updateReceiptStatus(req.params.id, 'sent');
+
+      res.json({
+        emailId: email?.id,
+        message: `Receipt sent to ${donation.email}`,
+        receipt_status: 'sent',
+      });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      console.error('[send-receipt] error:', err);
+      res
+        .status(500)
+        .json({ error: 'Failed to send receipt. Please try again.' });
     }
   },
 
@@ -139,9 +153,14 @@ const donationController = {
         });
       }
 
-      if (isNaN(amount) || Number(amount) <= 0 || !/^\d+(\.\d{1,2})?$/.test(String(amount))) {
+      if (
+        isNaN(amount) ||
+        Number(amount) <= 0 ||
+        !/^\d+(\.\d{1,2})?$/.test(String(amount))
+      ) {
         return res.status(400).json({
-          error: 'amount must be a positive number with at most 2 decimal places',
+          error:
+            'amount must be a positive number with at most 2 decimal places',
         });
       }
 
@@ -169,12 +188,10 @@ const donationController = {
         donation_date,
         receipt_status,
       });
-      res
-        .status(201)
-        .json({
-          message: 'Donation created successfully',
-          id: result.insertId,
-        });
+      res.status(201).json({
+        message: 'Donation created successfully',
+        id: result.insertId,
+      });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Internal server error' });

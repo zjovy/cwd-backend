@@ -127,6 +127,14 @@ export default {
     return { affectedRows: result.affectedRows };
   },
 
+  async updateReceiptStatus(id, receipt_status) {
+    const [result] = await pool.execute(
+      `UPDATE donations SET receipt_status = ? WHERE id = ?`,
+      [receipt_status, id]
+    );
+    return { affectedRows: result.affectedRows };
+  },
+
   async deleteDonation(id) {
     const conn = await pool.getConnection();
     try {
