@@ -1,13 +1,32 @@
 import Stripe from 'stripe';
+
 import donationRepository from '../repositories/donationRepository.js';
 import donorRepository from '../repositories/donorRepository.js';
 import syncMetaRepository from '../repositories/syncMetaRepository.js';
 
 const stripe = new Stripe(process.env.STRIPE_API_KEY);
 
+// Format a Unix timestamp (seconds) as YYYY-MM-DD in the foundation's local
+// timezone. Matches what Stripe shows in CSV exports / Dashboard, which use
+// the account's configured timezone (America/Chicago for Evanston, IL).
+const DONATION_TZ = 'America/Chicago';
+const dateFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: DONATION_TZ,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+function formatLocalDate(unixSeconds) {
+  return dateFormatter.format(new Date(unixSeconds * 1000));
+}
+
 function extractDonorFields(pi) {
   const email =
-    pi.customer?.email ?? pi.receipt_email ?? pi.metadata?.email_address ?? null;
+    pi.customer?.email ??
+    pi.receipt_email ??
+    pi.metadata?.email_address ??
+    null;
 
   const rawName =
     pi.customer?.name ??
@@ -22,7 +41,14 @@ function extractDonorFields(pi) {
 
   const addr = pi.latest_charge?.billing_details?.address;
   const address = addr
-    ? [addr.line1, addr.line2, addr.city, addr.state, addr.postal_code, addr.country]
+    ? [
+        addr.line1,
+        addr.line2,
+        addr.city,
+        addr.state,
+        addr.postal_code,
+        addr.country,
+      ]
         .filter(Boolean)
         .join(', ') || null
     : null;
@@ -51,7 +77,9 @@ const stripeSyncService = {
     while (hasMore) {
       if (startingAfter) listParams.starting_after = startingAfter;
       const page = await stripe.paymentIntents.list(listParams);
-      paymentIntents.push(...page.data.filter((pi) => pi.status === 'succeeded'));
+      paymentIntents.push(
+        ...page.data.filter((pi) => pi.status === 'succeeded')
+      );
       hasMore = page.has_more;
       if (page.data.length > 0) {
         startingAfter = page.data[page.data.length - 1].id;
@@ -62,7 +90,8 @@ const stripeSyncService = {
 
     for (const pi of paymentIntents) {
       try {
-        const { email, first_name, last_name, phone, address } = extractDonorFields(pi);
+        const { email, first_name, last_name, phone, address } =
+          extractDonorFields(pi);
 
         let donor;
         if (email) {
@@ -74,7 +103,9 @@ const stripeSyncService = {
             address,
           });
         } else if (first_name || last_name) {
-          const alreadyExists = await donationRepository.existsByStripeId(pi.id);
+          const alreadyExists = await donationRepository.existsByStripeId(
+            pi.id
+          );
           if (alreadyExists) {
             skipped.push(pi.id);
             continue;
@@ -95,7 +126,7 @@ const stripeSyncService = {
         const result = await donationRepository.createStripeDonation({
           donor_id: donor.id,
           amount: pi.amount / 100,
-          donation_date: new Date(pi.created * 1000).toISOString().split('T')[0],
+          donation_date: formatLocalDate(pi.created),
           description: pi.metadata?.event_name ?? null,
           stripe_payment_intent_id: pi.id,
           stripe_created_at: pi.created,
