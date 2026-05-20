@@ -161,6 +161,38 @@ export default {
     }
   },
 
+  async getMaxStripeCreatedAt() {
+    const [rows] = await pool.execute(
+      'SELECT MAX(stripe_created_at) AS max_created FROM donations WHERE stripe_payment_intent_id IS NOT NULL'
+    );
+    return rows[0].max_created ?? null;
+  },
+
+  async existsByStripeId(stripePaymentIntentId) {
+    const [rows] = await pool.execute(
+      'SELECT COUNT(*) AS cnt FROM donations WHERE stripe_payment_intent_id = ?',
+      [stripePaymentIntentId]
+    );
+    return parseInt(rows[0].cnt) > 0;
+  },
+
+  async createStripeDonation({
+    donor_id,
+    amount,
+    donation_date,
+    description,
+    stripe_payment_intent_id,
+    stripe_created_at,
+  }) {
+    const [result] = await pool.execute(
+      `INSERT IGNORE INTO donations
+         (donor_id, amount, donation_date, description, stripe_payment_intent_id, stripe_created_at, receipt_status)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
+      [donor_id, amount, donation_date, description, stripe_payment_intent_id, stripe_created_at]
+    );
+    return { affectedRows: result.affectedRows };
+  },
+
   async findOrCreateDonorByEmail({
     first_name,
     last_name,
@@ -353,6 +385,21 @@ export default {
       ORDER BY month_key
     `);
     return rows;
+  },
+
+  async setLastSync(key) {
+    await pool.execute(
+      'INSERT INTO sync_meta (`key`, synced_at) VALUES (?, NOW()) ON DUPLICATE KEY UPDATE synced_at = VALUES(synced_at)',
+      [key]
+    );
+  },
+
+  async getLastSync(key) {
+    const [rows] = await pool.execute(
+      'SELECT synced_at FROM sync_meta WHERE `key` = ?',
+      [key]
+    );
+    return rows[0]?.synced_at ?? null;
   },
 
   async getRangeSummary({ startDate, endDate } = {}) {

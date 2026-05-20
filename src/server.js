@@ -6,7 +6,8 @@ import express from 'express';
 import authRoutes from './routes/authRoutes.js';
 import donationRoutes from './routes/donationRoutes.js';
 import donorRoutes from './routes/donorRoutes.js';
-import dashboardRoutes from './routes/dashboardRoutes.js'
+import dashboardRoutes from './routes/dashboardRoutes.js';
+import syncRoutes from './routes/syncRoutes.js';
 
 dotenv.config();
 
@@ -47,6 +48,7 @@ app.use('/auth', authRoutes);
 app.use('/dashboard', dashboardRoutes);
 app.use('/donations', donationRoutes);
 app.use('/donors', donorRoutes);
+app.use('/sync', syncRoutes);
 
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });

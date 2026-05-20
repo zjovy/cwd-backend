@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS donors (
   id         INT AUTO_INCREMENT PRIMARY KEY,
   first_name VARCHAR(100) NOT NULL,
   last_name  VARCHAR(100) NOT NULL,
-  email      VARCHAR(255) NOT NULL,
+  email      VARCHAR(255) NULL,
   address    VARCHAR(255),
   phone      VARCHAR(20),
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -29,12 +29,21 @@ CREATE TABLE IF NOT EXISTS donors (
 );
 
 CREATE TABLE IF NOT EXISTS donations (
-  id             INT AUTO_INCREMENT PRIMARY KEY,
-  donor_id       INT NOT NULL,
-  amount         DECIMAL(10,2),
-  donation_date  DATE,
-  receipt_status VARCHAR(50),
-  created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  id                       INT AUTO_INCREMENT PRIMARY KEY,
+  donor_id                 INT NOT NULL,
+  amount                   DECIMAL(10,2),
+  donation_date            DATE,
+  receipt_status           VARCHAR(50),
+  stripe_payment_intent_id VARCHAR(255) NULL,
+  description              VARCHAR(500) NULL,
+  stripe_created_at        BIGINT       NULL,
+  created_at               DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-  CONSTRAINT fk_donation_donor FOREIGN KEY (donor_id) REFERENCES donors(id) ON DELETE RESTRICT
+  CONSTRAINT fk_donation_donor FOREIGN KEY (donor_id) REFERENCES donors(id) ON DELETE RESTRICT,
+  UNIQUE KEY idx_stripe_pi_id (stripe_payment_intent_id)
+);
+
+CREATE TABLE IF NOT EXISTS sync_meta (
+  `key`     VARCHAR(64) NOT NULL PRIMARY KEY,
+  synced_at DATETIME    NOT NULL
 );
