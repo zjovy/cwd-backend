@@ -4,6 +4,7 @@ import userRepository from '../repositories/userRepository.js';
 const authController = {
   async signup(req, res) {
     let userRecord;
+    let dbUserCreated = false;
     try {
       const { email, password, firstname, lastname } = req.body;
 
@@ -21,6 +22,7 @@ const authController = {
         firstname,
         lastname,
       });
+      dbUserCreated = true;
 
       const customToken = await admin.auth().createCustomToken(userRecord.uid);
 
@@ -32,6 +34,9 @@ const authController = {
     } catch (error) {
       if (userRecord) {
         await admin.auth().deleteUser(userRecord.uid).catch(() => {});
+        if (dbUserCreated) {
+          await userRepository.deleteByUid(userRecord.uid).catch(() => {});
+        }
       }
       console.error('Signup error:', error);
       if (error.code === 'auth/email-already-exists') {

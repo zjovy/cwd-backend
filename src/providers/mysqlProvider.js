@@ -7,6 +7,10 @@ export default {
     return { id: result.insertId, uid, email, role: 'pending' };
   },
 
+  async deleteByUid(uid) {
+    await pool.execute(`DELETE FROM users WHERE firebase_uid = ?`, [uid]);
+  },
+
   async findOrCreate({ uid, email, firstname, lastname }) {
     await pool.execute(
       `INSERT IGNORE INTO users (firebase_uid, email, firstname, lastname) VALUES (?, ?, ?, ?)`,
