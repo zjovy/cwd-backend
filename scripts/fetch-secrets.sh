@@ -19,8 +19,8 @@ DATABASE_CLIENT=mysql
 EOF
 
 # These should be set per-deployment (update before first deploy)
-echo "FRONTEND_URL=${FRONTEND_URL:-https://yourapp.com}" >> "$ENV_FILE"
-echo "API_URL=${API_URL:-https://api.yourapp.com}" >> "$ENV_FILE"
+echo "FRONTEND_URL=${FRONTEND_URL:-https://app.cwmarketfoundation.org}" >> "$ENV_FILE"
+echo "API_URL=${API_URL:-https://api.cwmarketfoundation.org}" >> "$ENV_FILE"
 
 # DB credentials from Secrets Manager
 DB_SECRET=$(aws secretsmanager get-secret-value \
@@ -40,6 +40,29 @@ FIREBASE_KEY=$(aws secretsmanager get-secret-value \
   --region "$REGION" \
   --query 'SecretString' --output text)
 echo "FIREBASE_SERVICE_ACCOUNT_KEY='$FIREBASE_KEY'" >> "$ENV_FILE"
+
+# Resend email config
+RESEND_KEY=$(aws secretsmanager get-secret-value \
+  --secret-id cwd/resend-key \
+  --region "$REGION" \
+  --query 'SecretString' --output text)
+echo "RESEND_API_KEY=$RESEND_KEY" >> "$ENV_FILE"
+echo "RESEND_FROM_EMAIL=\"C&W Market Foundation <donations@noreply.cwmarketfoundation.org>\"" >> "$ENV_FILE"
+echo "RECEIPT_CC_EMAIL=info@cwmarketfoundation.org" >> "$ENV_FILE"
+
+# Stripe API key from Secrets Manager
+STRIPE_KEY=$(aws secretsmanager get-secret-value \
+  --secret-id cwd/stripe-key \
+  --region "$REGION" \
+  --query 'SecretString' --output text)
+echo "STRIPE_API_KEY=$STRIPE_KEY" >> "$ENV_FILE"
+
+# Sync API key (shared secret between this backend and the GitHub Actions stripe-sync workflow)
+SYNC_KEY=$(aws secretsmanager get-secret-value \
+  --secret-id cwd/sync-key \
+  --region "$REGION" \
+  --query 'SecretString' --output text)
+echo "SYNC_API_KEY=$SYNC_KEY" >> "$ENV_FILE"
 
 chmod 600 "$ENV_FILE"
 echo "Secrets written to $ENV_FILE"

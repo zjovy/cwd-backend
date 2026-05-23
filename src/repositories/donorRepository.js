@@ -1,8 +1,6 @@
-import { databaseClient } from '../config/database.js';
 import mysqlProvider from '../providers/mysqlProvider.js';
-import postgresProvider from '../providers/postgresProvider.js';
 
-const p = databaseClient === 'mysql' ? mysqlProvider : postgresProvider;
+const p = mysqlProvider;
 
 const donorRepository = {
   getDonors: (opts) => p.getDonors(opts),

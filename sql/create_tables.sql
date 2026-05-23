@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS donors (
   id         SERIAL PRIMARY KEY,
   first_name VARCHAR(100) NOT NULL,
   last_name  VARCHAR(100) NOT NULL,
-  email      VARCHAR(255) NOT NULL UNIQUE,
+  email      VARCHAR(255) UNIQUE,
   address    VARCHAR(255),
   phone      VARCHAR(20),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -43,4 +43,9 @@ CREATE TABLE IF NOT EXISTS donations (
   donation_date  DATE,
   receipt_status VARCHAR(50),
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS sync_meta (
+  key       VARCHAR(64) PRIMARY KEY,
+  synced_at TIMESTAMPTZ NOT NULL
 );

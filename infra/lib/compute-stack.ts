@@ -54,12 +54,16 @@ export class ComputeStack extends cdk.Stack {
     // Grant read access to secrets
     dbSecret.grantRead(ec2Role);
 
-    // Also grant access to firebase secret (created manually or via console)
+    // Also grant access to firebase, resend, stripe, and sync secrets
+    // (all created manually or via console — see fetch-secrets.sh)
     ec2Role.addToPolicy(
       new iam.PolicyStatement({
         actions: ['secretsmanager:GetSecretValue'],
         resources: [
           `arn:aws:secretsmanager:${this.region}:${this.account}:secret:cwd/firebase-key*`,
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:cwd/resend-key*`,
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:cwd/stripe-key*`,
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:cwd/sync-key*`,
         ],
       }),
     );
@@ -74,7 +78,7 @@ export class ComputeStack extends cdk.Stack {
     userData = userData.replace(/\$\{DOMAIN_NAME\}/g, domainName);
     userData = userData.replace(/\$\{GITHUB_ORG\}/g, githubOrg);
     userData = userData.replace(/\$\{GITHUB_REPO\}/g, githubRepo);
-    userData = userData.replace(/\$\{FRONTEND_URL\}/g, 'https://yourapp.com'); // Update this
+    userData = userData.replace(/\$\{FRONTEND_URL\}/g, 'https://app.cwmarketfoundation.org');
 
     // EC2 instance
     this.instance = new ec2.Instance(this, 'CwdBackend', {
@@ -107,7 +111,7 @@ export class ComputeStack extends cdk.Stack {
     // Outputs
     new cdk.CfnOutput(this, 'ElasticIpAddress', {
       value: this.elasticIp.attrPublicIp,
-      description: 'Add this as an A record in Squarespace DNS for api.yourapp.com',
+      description: 'Add this as an A record in Squarespace DNS for api.cwmarketfoundation.org',
     });
 
     new cdk.CfnOutput(this, 'InstanceId', {

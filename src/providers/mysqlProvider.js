@@ -40,6 +40,8 @@ export default {
     status,
     minAmount,
     maxAmount,
+    startDate,
+    endDate,
     page = 1,
     limit = 25,
   }) {
@@ -66,6 +68,14 @@ export default {
     if (maxAmount) {
       where += ` AND d.amount <= ?`;
       params.push(maxAmount);
+    }
+    if (startDate) {
+      where += ` AND d.donation_date >= ?`;
+      params.push(startDate);
+    }
+    if (endDate) {
+      where += ` AND d.donation_date <= ?`;
+      params.push(endDate);
     }
 
     const [[countRows], [rows]] = await Promise.all([
@@ -117,6 +127,14 @@ export default {
     return { affectedRows: result.affectedRows };
   },
 
+  async updateReceiptStatus(id, receipt_status) {
+    const [result] = await pool.execute(
+      `UPDATE donations SET receipt_status = ? WHERE id = ?`,
+      [receipt_status, id]
+    );
+    return { affectedRows: result.affectedRows };
+  },
+
   async deleteDonation(id) {
     const conn = await pool.getConnection();
     try {
@@ -149,6 +167,38 @@ export default {
     } finally {
       conn.release();
     }
+  },
+
+  async getMaxStripeCreatedAt() {
+    const [rows] = await pool.execute(
+      'SELECT MAX(stripe_created_at) AS max_created FROM donations WHERE stripe_payment_intent_id IS NOT NULL'
+    );
+    return rows[0].max_created ?? null;
+  },
+
+  async existsByStripeId(stripePaymentIntentId) {
+    const [rows] = await pool.execute(
+      'SELECT COUNT(*) AS cnt FROM donations WHERE stripe_payment_intent_id = ?',
+      [stripePaymentIntentId]
+    );
+    return parseInt(rows[0].cnt) > 0;
+  },
+
+  async createStripeDonation({
+    donor_id,
+    amount,
+    donation_date,
+    description,
+    stripe_payment_intent_id,
+    stripe_created_at,
+  }) {
+    const [result] = await pool.execute(
+      `INSERT IGNORE INTO donations
+         (donor_id, amount, donation_date, description, stripe_payment_intent_id, stripe_created_at, receipt_status)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
+      [donor_id, amount, donation_date, description, stripe_payment_intent_id, stripe_created_at]
+    );
+    return { affectedRows: result.affectedRows };
   },
 
   async findOrCreateDonorByEmail({
@@ -342,6 +392,81 @@ export default {
       GROUP BY month_key, month
       ORDER BY month_key
     `);
+    return rows;
+  },
+
+  async setLastSync(key) {
+    await pool.execute(
+      'INSERT INTO sync_meta (`key`, synced_at) VALUES (?, NOW()) ON DUPLICATE KEY UPDATE synced_at = VALUES(synced_at)',
+      [key]
+    );
+  },
+
+  async getLastSync(key) {
+    const [rows] = await pool.execute(
+      'SELECT synced_at FROM sync_meta WHERE `key` = ?',
+      [key]
+    );
+    return rows[0]?.synced_at ?? null;
+  },
+
+  async getRangeSummary({ startDate, endDate } = {}) {
+    let where = 'WHERE 1=1';
+    const params = [];
+    if (startDate) {
+      where += ' AND donation_date >= ?';
+      params.push(startDate);
+    }
+    if (endDate) {
+      where += ' AND donation_date <= ?';
+      params.push(endDate);
+    }
+    const [rows] = await pool.execute(
+      `SELECT COALESCE(SUM(amount), 0) AS total_amount, COUNT(*) AS donation_count
+       FROM donations ${where}`,
+      params
+    );
+    return {
+      total_amount: parseFloat(rows[0].total_amount),
+      donation_count: parseInt(rows[0].donation_count),
+    };
+  },
+
+  async getRangeTrend({ startDate, endDate, bucket = 'month' } = {}) {
+    let where = 'WHERE 1=1';
+    const params = [];
+    if (startDate) {
+      where += ' AND donation_date >= ?';
+      params.push(startDate);
+    }
+    if (endDate) {
+      where += ' AND donation_date <= ?';
+      params.push(endDate);
+    }
+
+    let labelExpr, keyExpr;
+    if (bucket === 'week') {
+      labelExpr = `DATE_FORMAT(DATE_SUB(donation_date, INTERVAL WEEKDAY(donation_date) DAY), '%b %d, %Y')`;
+      keyExpr = `DATE_FORMAT(DATE_SUB(donation_date, INTERVAL WEEKDAY(donation_date) DAY), '%Y-%m-%d')`;
+    } else if (bucket === 'day') {
+      labelExpr = `DATE_FORMAT(donation_date, '%b %d, %Y')`;
+      keyExpr = `DATE_FORMAT(donation_date, '%Y-%m-%d')`;
+    } else if (bucket === 'year') {
+      labelExpr = `DATE_FORMAT(donation_date, '%Y')`;
+      keyExpr = `DATE_FORMAT(donation_date, '%Y')`;
+    } else {
+      labelExpr = `DATE_FORMAT(donation_date, '%b %Y')`;
+      keyExpr = `DATE_FORMAT(donation_date, '%Y-%m')`;
+    }
+
+    const [rows] = await pool.execute(
+      `SELECT ${labelExpr} AS label, ${keyExpr} AS bucket_key,
+              COALESCE(SUM(amount), 0) AS amount
+       FROM donations ${where}
+       GROUP BY bucket_key, label
+       ORDER BY bucket_key`,
+      params
+    );
     return rows;
   },
 };
