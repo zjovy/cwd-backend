@@ -179,6 +179,18 @@ export default {
     return { affectedRows: result.affectedRows };
   },
 
+  async markManyReceiptStatus(ids, receipt_status) {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return { affectedRows: 0 };
+    }
+    const placeholders = ids.map(() => '?').join(',');
+    const [result] = await pool.execute(
+      `UPDATE donations SET receipt_status = ? WHERE id IN (${placeholders})`,
+      [receipt_status, ...ids]
+    );
+    return { affectedRows: result.affectedRows };
+  },
+
   async deleteDonation(id) {
     const conn = await pool.getConnection();
     try {

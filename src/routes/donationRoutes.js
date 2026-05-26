@@ -10,6 +10,7 @@ router.use(authMiddleware, requireApprovalMiddleware);
 
 router.get('/', donationController.getDonations);
 router.post('/send-receipts', donationController.sendReceipts);
+router.post('/mark-sent', donationController.markReceiptsSent);
 router.get('/:id', donationController.getDonationDetail);
 router.post('/:id/send-receipt', donationController.sendReceipt);
 router.put('/:id', donationController.updateDonation);

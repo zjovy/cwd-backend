@@ -162,16 +162,33 @@ const donationController = {
       const sent = [];
       const failed = [];
 
+      const donorLabel = (donation) =>
+        [donation?.first_name, donation?.last_name]
+          .filter(Boolean)
+          .join(' ')
+          .trim() || 'Unknown donor';
+
       for (const rawId of ids) {
         const id = Number(rawId);
+        let donation = null;
         try {
-          const donation = await donationRepository.getById(id);
+          donation = await donationRepository.getById(id);
           if (!donation) {
-            failed.push({ id, error: 'Not found' });
+            failed.push({
+              id,
+              name: 'Unknown donor',
+              email: null,
+              error: 'Not found',
+            });
             continue;
           }
           if (!donation.email) {
-            failed.push({ id, error: 'No email on file' });
+            failed.push({
+              id,
+              name: donorLabel(donation),
+              email: null,
+              error: 'No email on file',
+            });
             continue;
           }
 
@@ -188,7 +205,12 @@ const donationController = {
           sent.push(id);
         } catch (err) {
           console.error(`[send-receipts] failed for id ${id}:`, err);
-          failed.push({ id, error: err.message || 'Send failed' });
+          failed.push({
+            id,
+            name: donorLabel(donation),
+            email: donation?.email || null,
+            error: err.message || 'Send failed',
+          });
         }
       }
 
@@ -198,6 +220,25 @@ const donationController = {
       res
         .status(500)
         .json({ error: 'Failed to send receipts. Please try again.' });
+    }
+  },
+
+  async markReceiptsSent(req, res) {
+    try {
+      const ids = Array.isArray(req.body?.ids)
+        ? req.body.ids.map((id) => Number(id)).filter((n) => Number.isFinite(n))
+        : [];
+      if (ids.length === 0) {
+        return res.status(400).json({ error: 'No donation ids provided.' });
+      }
+      const { affectedRows } = await donationRepository.markManyReceiptStatus(
+        ids,
+        'sent'
+      );
+      res.json({ updated: affectedRows, ids });
+    } catch (err) {
+      console.error('[mark-receipts-sent] error:', err);
+      res.status(500).json({ error: 'Failed to mark donations as sent.' });
     }
   },
 
