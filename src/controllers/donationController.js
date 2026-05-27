@@ -5,6 +5,7 @@ import { buildReceiptPdf } from '../services/receiptPdfService.js';
 import { validateDateRange } from '../utils/dateValidation.js';
 import {
   RECEIPT_SUBJECT,
+  applyReceiptTemplate,
   buildReceiptMessage,
   messageToHtml,
 } from '../utils/receiptTemplate.js';
@@ -117,7 +118,9 @@ const donationController = {
           .json({ error: 'Donor has no email address on file.' });
       }
 
-      const body = String(req.body?.body || buildReceiptMessage(donation));
+      const body = req.body?.body
+        ? applyReceiptTemplate(String(req.body.body), donation)
+        : buildReceiptMessage(donation);
       const pdf = await buildReceiptPdf({ donation, message: body });
       const email = await emailService.sendDonationReceipt({
         html: messageToHtml(body),
@@ -192,7 +195,9 @@ const donationController = {
             continue;
           }
 
-          const msg = sharedBody || buildReceiptMessage(donation);
+          const msg = sharedBody
+            ? applyReceiptTemplate(sharedBody, donation)
+            : buildReceiptMessage(donation);
           const pdf = await buildReceiptPdf({ donation, message: msg });
           await emailService.sendDonationReceipt({
             html: messageToHtml(msg),
