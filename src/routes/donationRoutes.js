@@ -9,6 +9,8 @@ const router = express.Router();
 router.use(authMiddleware, requireApprovalMiddleware);
 
 router.get('/', donationController.getDonations);
+router.get('/receipt-template', donationController.getReceiptTemplate);
+router.post('/unsent-recipients', donationController.getUnsentRecipients);
 router.post('/send-receipts', donationController.sendReceipts);
 router.post('/mark-sent', donationController.markReceiptsSent);
 router.get('/:id', donationController.getDonationDetail);

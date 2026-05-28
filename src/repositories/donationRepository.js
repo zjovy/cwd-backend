@@ -6,6 +6,7 @@ const donationRepository = {
   getDonations: (opts) => provider.getDonations(opts),
   getById: (id) => provider.getById(id),
   getUnsentIds: (filters) => provider.getUnsentIds(filters),
+  getUnsentRecipients: (filters) => provider.getUnsentRecipients(filters),
   createDonation: (data) => provider.createDonation(data),
   updateDonation: (id, body) => provider.updateDonation(id, body),
   updateReceiptStatus: (id, status) => provider.updateReceiptStatus(id, status),

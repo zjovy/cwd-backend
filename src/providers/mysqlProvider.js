@@ -117,6 +117,7 @@ export default {
     startDate,
     endDate,
   } = {}) {
+    const LIMIT = 20;
     let where = `WHERE COALESCE(d.receipt_status, 'pending') <> 'sent'`;
     const params = [];
 
@@ -147,10 +148,62 @@ export default {
 
     const [rows] = await pool.execute(
       `SELECT d.id FROM donations d JOIN donors dn ON d.donor_id = dn.id
-       ${where} ORDER BY d.donation_date DESC`,
+       ${where} ORDER BY d.donation_date DESC, d.id DESC LIMIT ${LIMIT}`,
       params
     );
     return rows.map((r) => r.id);
+  },
+
+  async getUnsentRecipients({
+    search,
+    status,
+    minAmount,
+    maxAmount,
+    startDate,
+    endDate,
+  } = {}) {
+    const LIMIT = 20;
+    let where = `WHERE COALESCE(d.receipt_status, 'pending') <> 'sent'`;
+    const params = [];
+
+    if (search) {
+      where += ` AND (dn.first_name LIKE ? OR dn.last_name LIKE ? OR dn.email LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+    if (status && status !== 'sent') {
+      where += ` AND d.receipt_status = ?`;
+      params.push(status);
+    }
+    if (minAmount) {
+      where += ` AND d.amount >= ?`;
+      params.push(minAmount);
+    }
+    if (maxAmount) {
+      where += ` AND d.amount <= ?`;
+      params.push(maxAmount);
+    }
+    if (startDate) {
+      where += ` AND d.donation_date >= ?`;
+      params.push(startDate);
+    }
+    if (endDate) {
+      where += ` AND d.donation_date <= ?`;
+      params.push(endDate);
+    }
+
+    // Recipients "being sent an email" must have an email address on file.
+    where += ` AND dn.email IS NOT NULL AND dn.email <> ''`;
+
+    const [rows] = await pool.execute(
+      `SELECT d.id, dn.first_name, dn.last_name, dn.email
+       FROM donations d
+       JOIN donors dn ON d.donor_id = dn.id
+       ${where}
+       ORDER BY d.donation_date DESC, d.id DESC
+       LIMIT ${LIMIT}`,
+      params
+    );
+    return rows;
   },
 
   async createDonation({ donor_id, amount, donation_date, receipt_status }) {

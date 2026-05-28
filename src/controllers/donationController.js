@@ -6,6 +6,7 @@ import { validateDateRange } from '../utils/dateValidation.js';
 import {
   RECEIPT_SUBJECT,
   applyReceiptTemplate,
+  buildReceiptMessageTemplate,
   buildReceiptMessage,
   messageToHtml,
 } from '../utils/receiptTemplate.js';
@@ -225,6 +226,40 @@ const donationController = {
       res
         .status(500)
         .json({ error: 'Failed to send receipts. Please try again.' });
+    }
+  },
+
+  async getUnsentRecipients(req, res) {
+    try {
+      const { filters } = req.body || {};
+      const rows = await donationRepository.getUnsentRecipients(filters || {});
+
+      const recipients = rows.map((r) => ({
+        id: r.id,
+        donorFullName: [r.first_name, r.last_name].filter(Boolean).join(' ').trim(),
+        donorEmail: r.email || '',
+      }));
+
+      res.json({ recipients, total: recipients.length, cap: 20 });
+    } catch (err) {
+      console.error('[get-unsent-recipients] error:', err);
+      res
+        .status(500)
+        .json({ error: 'Failed to load unsent recipients. Please try again.' });
+    }
+  },
+
+  async getReceiptTemplate(req, res) {
+    try {
+      res.json({
+        subject: RECEIPT_SUBJECT,
+        body: buildReceiptMessageTemplate(),
+      });
+    } catch (err) {
+      console.error('[get-receipt-template] error:', err);
+      res
+        .status(500)
+        .json({ error: 'Failed to load receipt template. Please try again.' });
     }
   },
 
