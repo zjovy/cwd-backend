@@ -113,6 +113,81 @@ export default {
     return rows[0] || null;
   },
 
+  _buildUnsentWhere({
+    search,
+    status,
+    minAmount,
+    maxAmount,
+    startDate,
+    endDate,
+    requireEmail,
+  } = {}) {
+    const LIMIT = 20;
+    let where = `WHERE COALESCE(d.receipt_status, 'pending') <> 'sent'`;
+    const params = [];
+
+    if (search) {
+      where += ` AND (dn.first_name LIKE ? OR dn.last_name LIKE ? OR dn.email LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+    if (status && status !== 'sent') {
+      where += ` AND d.receipt_status = ?`;
+      params.push(status);
+    }
+    if (minAmount) {
+      where += ` AND d.amount >= ?`;
+      params.push(minAmount);
+    }
+    if (maxAmount) {
+      where += ` AND d.amount <= ?`;
+      params.push(maxAmount);
+    }
+    if (startDate) {
+      where += ` AND d.donation_date >= ?`;
+      params.push(startDate);
+    }
+    if (endDate) {
+      where += ` AND d.donation_date <= ?`;
+      params.push(endDate);
+    }
+
+    if (requireEmail) {
+      where += ` AND dn.email IS NOT NULL AND dn.email <> ''`;
+    }
+
+    return { where, params, limit: LIMIT };
+  },
+
+  async getUnsentIds(filters = {}) {
+    const { where, params, limit } = this._buildUnsentWhere({
+      ...filters,
+      requireEmail: true,
+    });
+    const [rows] = await pool.execute(
+      `SELECT d.id FROM donations d JOIN donors dn ON d.donor_id = dn.id
+       ${where} ORDER BY d.donation_date DESC, d.id DESC LIMIT ${limit}`,
+      params
+    );
+    return rows.map((r) => r.id);
+  },
+
+  async getUnsentRecipients(filters = {}) {
+    const { where, params, limit } = this._buildUnsentWhere({
+      ...filters,
+      requireEmail: true,
+    });
+    const [rows] = await pool.execute(
+      `SELECT d.id, dn.first_name, dn.last_name, dn.email
+       FROM donations d
+       JOIN donors dn ON d.donor_id = dn.id
+       ${where}
+       ORDER BY d.donation_date DESC, d.id DESC
+       LIMIT ${limit}`,
+      params
+    );
+    return rows;
+  },
+
   async createDonation({ donor_id, amount, donation_date, receipt_status }) {
     const [result] = await pool.execute(
       `INSERT INTO donations (donor_id, amount, donation_date, receipt_status)
@@ -135,6 +210,18 @@ export default {
     const [result] = await pool.execute(
       `UPDATE donations SET receipt_status = ? WHERE id = ?`,
       [receipt_status, id]
+    );
+    return { affectedRows: result.affectedRows };
+  },
+
+  async markManyReceiptStatus(ids, receipt_status) {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return { affectedRows: 0 };
+    }
+    const placeholders = ids.map(() => '?').join(',');
+    const [result] = await pool.execute(
+      `UPDATE donations SET receipt_status = ? WHERE id IN (${placeholders})`,
+      [receipt_status, ...ids]
     );
     return { affectedRows: result.affectedRows };
   },
@@ -200,7 +287,14 @@ export default {
       `INSERT IGNORE INTO donations
          (donor_id, amount, donation_date, description, stripe_payment_intent_id, stripe_created_at, receipt_status)
        VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
-      [donor_id, amount, donation_date, description, stripe_payment_intent_id, stripe_created_at]
+      [
+        donor_id,
+        amount,
+        donation_date,
+        description,
+        stripe_payment_intent_id,
+        stripe_created_at,
+      ]
     );
     return { affectedRows: result.affectedRows };
   },

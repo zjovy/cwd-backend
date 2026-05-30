@@ -2,17 +2,28 @@ import donationRepository from '../repositories/donationRepository.js';
 import donorRepository from '../repositories/donorRepository.js';
 import emailService from '../services/emailService.js';
 import { buildReceiptPdf } from '../services/receiptPdfService.js';
+import { validateDateRange } from '../utils/dateValidation.js';
 import {
   RECEIPT_SUBJECT,
+  applyReceiptTemplate,
   buildReceiptMessage,
+  buildReceiptMessageTemplate,
   messageToHtml,
 } from '../utils/receiptTemplate.js';
-import { validateDateRange } from '../utils/dateValidation.js';
 
 const donationController = {
   async getDonations(req, res) {
     try {
-      const { search, status, minAmount, maxAmount, startDate, endDate, page, limit } = req.query;
+      const {
+        search,
+        status,
+        minAmount,
+        maxAmount,
+        startDate,
+        endDate,
+        page,
+        limit,
+      } = req.query;
       const dateError = validateDateRange(startDate, endDate);
       if (dateError) return res.status(400).json({ error: dateError });
       const { rows, total } = await donationRepository.getDonations({
@@ -108,7 +119,9 @@ const donationController = {
           .json({ error: 'Donor has no email address on file.' });
       }
 
-      const body = String(req.body?.body || buildReceiptMessage(donation));
+      const body = req.body?.body
+        ? applyReceiptTemplate(String(req.body.body), donation)
+        : buildReceiptMessage(donation);
       const pdf = await buildReceiptPdf({ donation, message: body });
       const email = await emailService.sendDonationReceipt({
         html: messageToHtml(body),
@@ -130,6 +143,169 @@ const donationController = {
       res
         .status(500)
         .json({ error: 'Failed to send receipt. Please try again.' });
+    }
+  },
+
+  async sendReceipts(req, res) {
+    try {
+      const { allUnsent, filters, body } = req.body || {};
+      let ids = Array.isArray(req.body?.ids) ? req.body.ids : null;
+
+      if (allUnsent) {
+        ids = await donationRepository.getUnsentIds(filters || {});
+      }
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res
+          .status(400)
+          .json({ error: 'No donations selected to send.' });
+      }
+
+      // Dedup explicit ids so callers can't trigger double sends with [1,1,2]
+      ids = [...new Set(ids.map((id) => Number(id)))].filter((n) =>
+        Number.isFinite(n)
+      );
+
+      const sharedBody = typeof body === 'string' && body.trim() ? body : null;
+
+      const sent = [];
+      const failed = [];
+
+      const donorLabel = (donation) =>
+        [donation?.first_name, donation?.last_name]
+          .filter(Boolean)
+          .join(' ')
+          .trim() || 'Unknown donor';
+
+      for (const id of ids) {
+        let donation = null;
+        let emailSent = false;
+        try {
+          donation = await donationRepository.getById(id);
+          if (!donation) {
+            failed.push({
+              id,
+              name: 'Unknown donor',
+              email: null,
+              error: 'Not found',
+            });
+            continue;
+          }
+          if (!donation.email) {
+            failed.push({
+              id,
+              name: donorLabel(donation),
+              email: null,
+              error: 'No email on file',
+            });
+            continue;
+          }
+
+          const msg = sharedBody
+            ? applyReceiptTemplate(sharedBody, donation)
+            : buildReceiptMessage(donation);
+          const pdf = await buildReceiptPdf({ donation, message: msg });
+          await emailService.sendDonationReceipt({
+            html: messageToHtml(msg),
+            pdf,
+            subject: RECEIPT_SUBJECT,
+            text: msg,
+            to: donation.email,
+          });
+          emailSent = true;
+
+          // Email has gone out — if the DB update fails the donor row stays
+          // 'pending' and would be re-sent on the next bulk run. Surface this
+          // loudly and keep the id in `sent` so the UI doesn't prompt a retry.
+          try {
+            await donationRepository.updateReceiptStatus(id, 'sent');
+          } catch (dbErr) {
+            console.error(
+              `[send-receipts] CRITICAL: email sent for id ${id} (${donation.email}) but receipt_status update failed. Mark this donation as sent manually to avoid a duplicate receipt.`,
+              dbErr
+            );
+          }
+          sent.push(id);
+        } catch (err) {
+          console.error(`[send-receipts] failed for id ${id}:`, err);
+          if (emailSent) {
+            // Shouldn't happen — only DB update is after `emailSent = true`,
+            // and that has its own catch. Guarding anyway so we never report
+            // a sent email as failed.
+            sent.push(id);
+          } else {
+            failed.push({
+              id,
+              name: donorLabel(donation),
+              email: donation?.email || null,
+              error: err.message || 'Send failed',
+            });
+          }
+        }
+      }
+
+      res.json({ sent, failed, total: ids.length });
+    } catch (err) {
+      console.error('[send-receipts] error:', err);
+      res
+        .status(500)
+        .json({ error: 'Failed to send receipts. Please try again.' });
+    }
+  },
+
+  async getUnsentRecipients(req, res) {
+    try {
+      const { filters } = req.body || {};
+      const rows = await donationRepository.getUnsentRecipients(filters || {});
+
+      const recipients = rows.map((r) => ({
+        id: r.id,
+        donorFullName: [r.first_name, r.last_name]
+          .filter(Boolean)
+          .join(' ')
+          .trim(),
+        donorEmail: r.email || '',
+      }));
+
+      res.json({ recipients, total: recipients.length, cap: 20 });
+    } catch (err) {
+      console.error('[get-unsent-recipients] error:', err);
+      res
+        .status(500)
+        .json({ error: 'Failed to load unsent recipients. Please try again.' });
+    }
+  },
+
+  async getReceiptTemplate(req, res) {
+    try {
+      res.json({
+        subject: RECEIPT_SUBJECT,
+        body: buildReceiptMessageTemplate(),
+      });
+    } catch (err) {
+      console.error('[get-receipt-template] error:', err);
+      res
+        .status(500)
+        .json({ error: 'Failed to load receipt template. Please try again.' });
+    }
+  },
+
+  async markReceiptsSent(req, res) {
+    try {
+      const ids = Array.isArray(req.body?.ids)
+        ? req.body.ids.map((id) => Number(id)).filter((n) => Number.isFinite(n))
+        : [];
+      if (ids.length === 0) {
+        return res.status(400).json({ error: 'No donation ids provided.' });
+      }
+      const { affectedRows } = await donationRepository.markManyReceiptStatus(
+        ids,
+        'sent'
+      );
+      res.json({ updated: affectedRows, ids });
+    } catch (err) {
+      console.error('[mark-receipts-sent] error:', err);
+      res.status(500).json({ error: 'Failed to mark donations as sent.' });
     }
   },
 
