@@ -155,7 +155,10 @@ export default {
   },
 
   async getUnsentIds(filters = {}) {
-    const { where, params, limit } = this._buildUnsentWhere(filters);
+    const { where, params, limit } = this._buildUnsentWhere({
+      ...filters,
+      requireEmail: true,
+    });
     const [rows] = await pool.execute(
       `SELECT d.id FROM donations d JOIN donors dn ON d.donor_id = dn.id
        ${where} ORDER BY d.donation_date DESC, d.id DESC LIMIT ${limit}`,

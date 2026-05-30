@@ -6,8 +6,8 @@ import { validateDateRange } from '../utils/dateValidation.js';
 import {
   RECEIPT_SUBJECT,
   applyReceiptTemplate,
-  buildReceiptMessageTemplate,
   buildReceiptMessage,
+  buildReceiptMessageTemplate,
   messageToHtml,
 } from '../utils/receiptTemplate.js';
 
@@ -161,6 +161,11 @@ const donationController = {
           .json({ error: 'No donations selected to send.' });
       }
 
+      // Dedup explicit ids so callers can't trigger double sends with [1,1,2]
+      ids = [...new Set(ids.map((id) => Number(id)))].filter((n) =>
+        Number.isFinite(n)
+      );
+
       const sharedBody = typeof body === 'string' && body.trim() ? body : null;
 
       const sent = [];
@@ -172,9 +177,9 @@ const donationController = {
           .join(' ')
           .trim() || 'Unknown donor';
 
-      for (const rawId of ids) {
-        const id = Number(rawId);
+      for (const id of ids) {
         let donation = null;
+        let emailSent = false;
         try {
           donation = await donationRepository.getById(id);
           if (!donation) {
@@ -207,16 +212,35 @@ const donationController = {
             text: msg,
             to: donation.email,
           });
-          await donationRepository.updateReceiptStatus(id, 'sent');
+          emailSent = true;
+
+          // Email has gone out — if the DB update fails the donor row stays
+          // 'pending' and would be re-sent on the next bulk run. Surface this
+          // loudly and keep the id in `sent` so the UI doesn't prompt a retry.
+          try {
+            await donationRepository.updateReceiptStatus(id, 'sent');
+          } catch (dbErr) {
+            console.error(
+              `[send-receipts] CRITICAL: email sent for id ${id} (${donation.email}) but receipt_status update failed. Mark this donation as sent manually to avoid a duplicate receipt.`,
+              dbErr
+            );
+          }
           sent.push(id);
         } catch (err) {
           console.error(`[send-receipts] failed for id ${id}:`, err);
-          failed.push({
-            id,
-            name: donorLabel(donation),
-            email: donation?.email || null,
-            error: err.message || 'Send failed',
-          });
+          if (emailSent) {
+            // Shouldn't happen — only DB update is after `emailSent = true`,
+            // and that has its own catch. Guarding anyway so we never report
+            // a sent email as failed.
+            sent.push(id);
+          } else {
+            failed.push({
+              id,
+              name: donorLabel(donation),
+              email: donation?.email || null,
+              error: err.message || 'Send failed',
+            });
+          }
         }
       }
 
@@ -236,7 +260,10 @@ const donationController = {
 
       const recipients = rows.map((r) => ({
         id: r.id,
-        donorFullName: [r.first_name, r.last_name].filter(Boolean).join(' ').trim(),
+        donorFullName: [r.first_name, r.last_name]
+          .filter(Boolean)
+          .join(' ')
+          .trim(),
         donorEmail: r.email || '',
       }));
 
