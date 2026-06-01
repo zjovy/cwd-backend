@@ -88,7 +88,7 @@ export default {
         params
       ),
       pool.execute(
-        `SELECT d.id, d.donor_id, d.amount, d.donation_date, d.receipt_status,
+        `SELECT d.id, d.donor_id, d.amount, d.donation_date, d.receipt_status, d.description,
                 dn.first_name, dn.last_name, dn.email
          FROM donations d
          JOIN donors dn ON d.donor_id = dn.id
@@ -103,7 +103,7 @@ export default {
 
   async getById(id) {
     const [rows] = await pool.execute(
-      `SELECT d.id, d.donor_id, d.amount, d.donation_date, d.receipt_status,
+      `SELECT d.id, d.donor_id, d.amount, d.donation_date, d.receipt_status, d.description,
               dn.first_name, dn.last_name, dn.email, dn.phone, dn.address
        FROM donations d
        JOIN donors dn ON d.donor_id = dn.id
