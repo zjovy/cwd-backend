@@ -46,6 +46,7 @@ export default {
     maxAmount,
     startDate,
     endDate,
+    descriptionSearch,
     page = 1,
     limit = 25,
   }) {
@@ -81,6 +82,10 @@ export default {
       where += ` AND d.donation_date <= ?`;
       params.push(endDate);
     }
+    if (descriptionSearch) {
+      where += ` AND d.description LIKE ?`;
+      params.push(`%${descriptionSearch}%`);
+    }
 
     const [[countRows], [rows]] = await Promise.all([
       pool.execute(
@@ -88,7 +93,7 @@ export default {
         params
       ),
       pool.execute(
-        `SELECT d.id, d.donor_id, d.amount, d.donation_date, d.receipt_status,
+        `SELECT d.id, d.donor_id, d.amount, d.donation_date, d.receipt_status, d.description,
                 dn.first_name, dn.last_name, dn.email
          FROM donations d
          JOIN donors dn ON d.donor_id = dn.id
@@ -103,7 +108,7 @@ export default {
 
   async getById(id) {
     const [rows] = await pool.execute(
-      `SELECT d.id, d.donor_id, d.amount, d.donation_date, d.receipt_status,
+      `SELECT d.id, d.donor_id, d.amount, d.donation_date, d.receipt_status, d.description,
               dn.first_name, dn.last_name, dn.email, dn.phone, dn.address
        FROM donations d
        JOIN donors dn ON d.donor_id = dn.id
@@ -120,6 +125,7 @@ export default {
     maxAmount,
     startDate,
     endDate,
+    descriptionSearch,
     requireEmail,
   } = {}) {
     const LIMIT = 20;
@@ -149,6 +155,10 @@ export default {
     if (endDate) {
       where += ` AND d.donation_date <= ?`;
       params.push(endDate);
+    }
+    if (descriptionSearch) {
+      where += ` AND d.description LIKE ?`;
+      params.push(`%${descriptionSearch}%`);
     }
 
     if (requireEmail) {
