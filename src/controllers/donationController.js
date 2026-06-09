@@ -21,6 +21,7 @@ const donationController = {
         maxAmount,
         startDate,
         endDate,
+        descriptionSearch,
         page,
         limit,
       } = req.query;
@@ -33,6 +34,7 @@ const donationController = {
         maxAmount,
         startDate,
         endDate,
+        descriptionSearch,
         page,
         limit,
       });

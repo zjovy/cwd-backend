@@ -46,6 +46,7 @@ export default {
     maxAmount,
     startDate,
     endDate,
+    descriptionSearch,
     page = 1,
     limit = 25,
   }) {
@@ -80,6 +81,10 @@ export default {
     if (endDate) {
       where += ` AND d.donation_date <= ?`;
       params.push(endDate);
+    }
+    if (descriptionSearch) {
+      where += ` AND d.description LIKE ?`;
+      params.push(`%${descriptionSearch}%`);
     }
 
     const [[countRows], [rows]] = await Promise.all([
@@ -120,6 +125,7 @@ export default {
     maxAmount,
     startDate,
     endDate,
+    descriptionSearch,
     requireEmail,
   } = {}) {
     const LIMIT = 20;
@@ -149,6 +155,10 @@ export default {
     if (endDate) {
       where += ` AND d.donation_date <= ?`;
       params.push(endDate);
+    }
+    if (descriptionSearch) {
+      where += ` AND d.description LIKE ?`;
+      params.push(`%${descriptionSearch}%`);
     }
 
     if (requireEmail) {
