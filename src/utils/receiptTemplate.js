@@ -51,8 +51,9 @@ function escapeHtml(value) {
 }
 
 export function messageToHtml(message) {
-  return escapeHtml(message)
-    .split('\n')
-    .map((line) => (line ? `<p>${line}</p>` : '<br>'))
-    .join('');
+  // Use <br> per newline (not <p>) so email clients don't stack default
+  // paragraph margins on top of intentional blank lines. Signature titles
+  // then sit directly under names, matching the letter layout.
+  const body = escapeHtml(message).split('\n').join('<br>');
+  return `<div style="margin:0;line-height:1.5;">${body}</div>`;
 }
