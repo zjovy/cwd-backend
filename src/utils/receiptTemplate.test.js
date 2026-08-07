@@ -18,8 +18,6 @@ describe('messageToHtml', () => {
     assert.match(html, /^<div style="[^"]*">/);
     assert.match(html, /<\/div>$/);
 
-    // One <br> per newline so blank lines stay single visual gaps,
-    // and signature titles sit directly under names.
     assert.equal(
       html,
       '<div style="margin:0;line-height:1.5;">' +
