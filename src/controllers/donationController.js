@@ -148,6 +148,32 @@ const donationController = {
     }
   },
 
+  async getReceiptPdf(req, res) {
+    try {
+      const donation = await donationRepository.getById(req.params.id);
+      if (!donation) {
+        return res.status(404).json({ error: 'Donation not found' });
+      }
+
+      const body = req.body?.body
+        ? applyReceiptTemplate(String(req.body.body), donation)
+        : buildReceiptMessage(donation);
+      const pdf = await buildReceiptPdf({ donation, message: body });
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `inline; filename="receipt-${req.params.id}.pdf"`
+      );
+      res.send(pdf);
+    } catch (err) {
+      console.error('[receipt-pdf] error:', err);
+      res
+        .status(500)
+        .json({ error: 'Failed to generate receipt PDF. Please try again.' });
+    }
+  },
+
   async sendReceipts(req, res) {
     try {
       const { allUnsent, filters, body } = req.body || {};
