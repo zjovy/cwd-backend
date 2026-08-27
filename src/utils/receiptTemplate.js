@@ -51,8 +51,6 @@ function escapeHtml(value) {
 }
 
 export function messageToHtml(message) {
-  return escapeHtml(message)
-    .split('\n')
-    .map((line) => (line ? `<p>${line}</p>` : '<br>'))
-    .join('');
+  const body = escapeHtml(message).split('\n').join('<br>');
+  return `<div style="margin:0;line-height:1.5;">${body}</div>`;
 }
