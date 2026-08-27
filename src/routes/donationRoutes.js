@@ -15,6 +15,7 @@ router.post('/send-receipts', donationController.sendReceipts);
 router.post('/mark-sent', donationController.markReceiptsSent);
 router.get('/:id', donationController.getDonationDetail);
 router.post('/:id/send-receipt', donationController.sendReceipt);
+router.post('/:id/receipt-pdf', donationController.getReceiptPdf);
 router.put('/:id', donationController.updateDonation);
 router.post('/', donationController.createDonation);
 router.delete('/:id', donationController.deleteDonation);
