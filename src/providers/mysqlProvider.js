@@ -1,5 +1,15 @@
 import { pool } from '../config/database.js';
 
+function withDonationSource(row) {
+  if (!row) return null;
+  const stripeId = row.stripe_payment_intent_id;
+  const hasStripeId = stripeId != null && String(stripeId).trim() !== '';
+  return {
+    ...row,
+    source: hasStripeId ? 'stripe' : 'manual',
+  };
+}
+
 export default {
   async createUser({ uid, email, firstname, lastname }) {
     const sql = `INSERT INTO users (firebase_uid, email, firstname, lastname) VALUES (?, ?, ?, ?)`;
@@ -94,10 +104,7 @@ export default {
       ),
       pool.execute(
         `SELECT d.id, d.donor_id, d.amount, d.donation_date, d.receipt_status, d.description,
-                CASE
-                  WHEN d.stripe_payment_intent_id IS NOT NULL THEN 'stripe'
-                  ELSE 'manual'
-                END AS source,
+                d.stripe_payment_intent_id,
                 dn.first_name, dn.last_name, dn.email
          FROM donations d
          JOIN donors dn ON d.donor_id = dn.id
@@ -107,23 +114,23 @@ export default {
       ),
     ]);
 
-    return { rows, total: parseInt(countRows[0].total) };
+    return {
+      rows: rows.map(withDonationSource),
+      total: parseInt(countRows[0].total),
+    };
   },
 
   async getById(id) {
     const [rows] = await pool.execute(
       `SELECT d.id, d.donor_id, d.amount, d.donation_date, d.receipt_status, d.description,
-              CASE
-                WHEN d.stripe_payment_intent_id IS NOT NULL THEN 'stripe'
-                ELSE 'manual'
-              END AS source,
+              d.stripe_payment_intent_id,
               dn.first_name, dn.last_name, dn.email, dn.phone, dn.address
        FROM donations d
        JOIN donors dn ON d.donor_id = dn.id
        WHERE d.id = ?`,
       [id]
     );
-    return rows[0] || null;
+    return withDonationSource(rows[0]);
   },
 
   _buildUnsentWhere({
@@ -381,7 +388,7 @@ export default {
     if (!donorRows.length) return null;
 
     const [donationRows] = await pool.execute(
-      `SELECT id, amount, donation_date, receipt_status
+      `SELECT id, amount, donation_date, receipt_status, stripe_payment_intent_id
        FROM donations
        WHERE donor_id = ?
        ORDER BY donation_date DESC`,
@@ -409,7 +416,7 @@ export default {
       donation_count: parseInt(donation_count),
       total_donations: parseFloat(total_donations),
       most_recent,
-      donations: donationRows,
+      donations: donationRows.map(withDonationSource),
     };
   },
 
